@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -24,6 +25,7 @@ const (
 	InternalError = iota
 	BannedError
 	NoCookiesError
+	CaptchaIdError
 )
 
 type UnitError struct {
@@ -82,7 +84,18 @@ func (unit *Unit) GetCaptchaId() error {
 	if err != nil {
 		return err
 	}
-	unit.Log(string(cont))
+	var response struct {
+		Id     string
+		Result int
+	}
+	json.Unmarshal(cont, &response)
+	if response.Id == "" {
+		return UnitError{
+			Code:    CaptchaIdError,
+			Message: string(cont),
+		}
+	}
+	unit.CaptchaId = response.Id
 	return nil
 }
 
