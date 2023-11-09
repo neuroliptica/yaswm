@@ -36,21 +36,19 @@ type Env struct {
 	Errors []error
 }
 
-func (env *Env) GetProxies(path string) *Env {
+func (env *Env) GetProxies(path string) error {
 	cont, err := os.ReadFile(path)
 	if err != nil {
-		env.Errors = append(env.Errors, err)
-		return env
+		return err
 	}
 	env.Proxies = strings.Split(string(cont), "\n")
-	return env
+	return nil
 }
 
-func (env *Env) GetMedia(path string) *Env {
+func (env *Env) GetMedia(path string) error {
 	entry, err := os.ReadDir(path)
 	if err != nil {
-		env.Errors = append(env.Errors, err)
-		return env
+		return err
 	}
 	exts := []string{
 		".jpg",
@@ -67,35 +65,30 @@ func (env *Env) GetMedia(path string) *Env {
 			}
 		}
 	}
-	return env
+	return nil
 }
 
-func (env *Env) GetTexts(path string) *Env {
+func (env *Env) GetTexts(path string) error {
 	cont, err := os.ReadFile(path)
 	if err != nil {
-		env.Errors = append(env.Errors, err)
-		return env
+		return err
 	}
 	env.Proxies = strings.Split(string(cont), "\n\n")
-	return env
+	return nil
 }
 
-func (env *Env) ParseWipeMode() *Env {
+func (env *Env) ParseWipeMode() error {
 	env.WipeMode = uint8(*WipeModeFlag)
 	if env.WipeMode > Creating {
-		env.Errors = append(
-			env.Errors,
-			fmt.Errorf("неправильный режим"),
-		)
+		return fmt.Errorf("неправильный режим")
 	}
-	return env
+	return nil
 }
 
-func (env *Env) ParsePostSettings() *Env {
+func (env *Env) ParsePostSettings() {
 	env.Board = *BoardFlag
 	env.Thread = *ThreadFlag
 	env.Email = *EmailFlag
-	return env
 }
 
 func (env *Env) ParsingFailed() bool {

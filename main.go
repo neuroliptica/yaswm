@@ -19,17 +19,19 @@ func main() {
 	logger.Log("sieg heil")
 
 	var env Env
-	env.
-		ParseWipeMode().
-		ParsePostSettings().
-		GetMedia("dsajdl").
-		GetTexts("dasd").
-		GetProxies("dsad")
+	err := Maybe{
+		env.ParseWipeMode,
+		func() error {
+			env.ParseWipeMode()
+			return nil
+		},
+		func() error { return env.GetMedia("ad") },
+		func() error { return env.GetTexts("ADASD") },
+		func() error { return env.GetProxies("adsas") },
+	}.Eval()
 
-	if env.ParsingFailed() {
-		for _, err := range env.Errors {
-			logger.Log(err.Error())
-		}
-		return
+	if err != nil {
+		logger.Log(err.Error())
 	}
+
 }
