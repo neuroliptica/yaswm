@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -26,6 +27,8 @@ const (
 	BannedError
 	NoCookiesError
 	CaptchaIdError
+	CaptchaIdParsingError
+	CaptchaImageError
 )
 
 type UnitError struct {
@@ -82,7 +85,10 @@ func (unit *Unit) GetCaptchaId() error {
 	}
 	cont, err := req.Perform()
 	if err != nil {
-		return err
+		return UnitError{
+			Code:    CaptchaIdError,
+			Message: err.Error(),
+		}
 	}
 	var response struct {
 		Id     string
@@ -91,7 +97,7 @@ func (unit *Unit) GetCaptchaId() error {
 	json.Unmarshal(cont, &response)
 	if response.Id == "" {
 		return UnitError{
-			Code:    CaptchaIdError,
+			Code:    CaptchaIdParsingError,
 			Message: string(cont),
 		}
 	}
@@ -99,11 +105,35 @@ func (unit *Unit) GetCaptchaId() error {
 	return nil
 }
 
-func (unit *Unit) GetRandomThread() error {
-	return nil
+func (unit *Unit) GetCaptchaImage() ([]byte, error) {
+	url := fmt.Sprintf(
+		"https://2ch.hk%sshow?id=%s",
+		CaptchaApi,
+		unit.CaptchaId,
+	)
+	req := GetRequest{
+		RequestInternal{
+			Url:     url,
+			Headers: unit.Headers,
+			Cookies: unit.Cookies,
+			Timeout: time.Second * 30,
+		},
+	}
+	return req.Perform()
 }
 
 func (unit *Unit) SolveCaptcha() error {
+	img, err := unit.GetCaptchaImage()
+	if err != nil {
+		return UnitError{
+			Code:    CaptchaImageError,
+			Message: err.Error(),
+		}
+	}
+	return ioutil.WriteFile("img.png", img, 0644)
+}
+
+func (unit *Unit) GetRandomThread() error {
 	return nil
 }
 
