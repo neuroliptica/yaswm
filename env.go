@@ -10,7 +10,7 @@ import (
 var (
 	WipeModeFlag = flag.Uint("mode", RandomThreads, "set up wipe mode.")
 	BoardFlag    = flag.String("board", "b", "set up board.")
-	ThreadFlag   = flag.String("thread", "", "set up thread id.")
+	ThreadFlag   = flag.String("thread", "0", "set up thread id.")
 	EmailFlag    = flag.String("email", "", "set up email field value.")
 )
 

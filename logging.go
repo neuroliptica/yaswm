@@ -52,12 +52,10 @@ func (l *Logger) BindChanReader(ch *ChanReader) *Logger {
 	return l
 }
 
-func (l *Logger) Log(msg string) {
-	l.Chan.Write(msg)
+func (l *Logger) Log(msg ...any) {
+	l.Chan.Write(fmt.Sprint(msg...))
 }
 
 func (l *Logger) Logf(format string, entries ...any) {
-	l.Chan.Write(
-		fmt.Sprintf(format, entries...),
-	)
+	l.Chan.Write(fmt.Sprintf(format, entries...))
 }
