@@ -3,6 +3,12 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"time"
+)
+
+const (
+	CaptchaApi = "/api/captcha/2chcaptcha/"
+	PostingApi = "/user/posting"
 )
 
 // States
@@ -57,6 +63,26 @@ func (unit *Unit) Logf(format string, msg ...any) {
 }
 
 func (unit *Unit) GetCaptchaId() error {
+	url := fmt.Sprintf(
+		"https://2ch.hk%sid?board=%s&thread=%s",
+		CaptchaApi,
+		unit.Env.Board,
+		unit.Env.Thread,
+	)
+	unit.Log(url)
+	req := GetRequest{
+		RequestInternal: RequestInternal{
+			Url:     url,
+			Headers: unit.Headers,
+			Cookies: unit.Cookies,
+			Timeout: time.Second * 30,
+		},
+	}
+	cont, err := req.Perform()
+	if err != nil {
+		return err
+	}
+	unit.Log(string(cont))
 	return nil
 }
 
