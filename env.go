@@ -1,8 +1,17 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"os"
 	"strings"
+)
+
+var (
+	WipeModeFlag = flag.Uint("mode", RandomThreads, "set up wipe mode.")
+	BoardFlag    = flag.String("board", "b", "set up board.")
+	ThreadFlag   = flag.String("thread", "", "set up thread id.")
+	EmailFlag    = flag.String("email", "", "set up email field value.")
 )
 
 // Wipe modes.
@@ -72,10 +81,20 @@ func (env *Env) GetTexts(path string) *Env {
 }
 
 func (env *Env) ParseWipeMode() *Env {
+	env.WipeMode = uint8(*WipeModeFlag)
+	if env.WipeMode > Creating {
+		env.Errors = append(
+			env.Errors,
+			fmt.Errorf("неправильный режим"),
+		)
+	}
 	return env
 }
 
 func (env *Env) ParsePostSettings() *Env {
+	env.Board = *BoardFlag
+	env.Thread = *ThreadFlag
+	env.Email = *EmailFlag
 	return env
 }
 
