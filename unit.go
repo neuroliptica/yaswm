@@ -130,7 +130,9 @@ func (unit *Unit) SolveCaptcha() error {
 			Message: err.Error(),
 		}
 	}
-	return ioutil.WriteFile("img.png", img, 0644)
+	ioutil.WriteFile("img.png", img, 0644)
+	fmt.Scan(&unit.CaptchaValue)
+	return nil
 }
 
 func (unit *Unit) GetRandomThread() error {
@@ -138,6 +140,42 @@ func (unit *Unit) GetRandomThread() error {
 }
 
 func (unit *Unit) SendPost() error {
+	url := "https://2ch.hk" + PostingApi
+	params := map[string]string{
+		"task":             "post",
+		"captcha_type":     "2chcaptcha",
+		"comment":          "факинг щит!",
+		"board":            unit.Env.Board,
+		"thread":           unit.Env.Thread,
+		"2chcaptcha_id":    unit.CaptchaId,
+		"2chcaptcha_value": unit.CaptchaValue,
+	}
+	ReqInternal := RequestInternal{
+		Url:     url,
+		Headers: unit.Headers,
+		Cookies: unit.Cookies,
+		Timeout: time.Second * 30,
+	}
+	file, _ := ioutil.ReadFile("./res/test.png")
+	form := FilesForm{
+		Name: "file[]",
+		Files: map[string][]byte{
+			".png": file,
+		},
+	}
+	req := PostMultipartRequest{
+		Request: PostRequest{
+			RequestInternal: ReqInternal,
+		},
+		Form:   form,
+		Params: params,
+	}
+
+	resp, err := req.Perform()
+	if err != nil {
+		return err
+	}
+	unit.Log(string(resp))
 	return nil
 }
 
