@@ -22,6 +22,14 @@ const (
 	Failed
 )
 
+// Posting stages
+const (
+	CaptchaId = iota
+	CaptchaImage
+	CaptchaSolving
+	SendingPost
+)
+
 // UnitError codes
 const (
 	InternalError = iota
@@ -32,6 +40,12 @@ const (
 	CaptchaImageError
 	SendPostError
 )
+
+type Answer struct {
+	Stage    int
+	Body     []byte
+	Response *http.Response
+}
 
 type UnitError struct {
 	Code    int
@@ -50,15 +64,14 @@ type Unit struct {
 	Env    *Env
 	Logger *Logger
 
-	State             uint8
-	CurrentExternalIp string
-	PrevExternalIp    string
+	State                             uint8
+	CurrentExternalIp, PrevExternalIp string
 
-	CaptchaId    string
-	CaptchaValue string
+	CaptchaId, CaptchaValue string
 
-	LastAnswer  any // todo
-	FailedTimes int
+	FailedTimes  int
+	LastAnswer   Answer
+	BanTimestamp time.Time
 }
 
 func (unit *Unit) Log(msg ...any) {
@@ -77,6 +90,9 @@ func (unit *Unit) GetCaptchaId() error {
 		unit.Env.Thread,
 	)
 	unit.Log(url)
+	unit.LastAnswer = Answer{
+		Stage: CaptchaId,
+	}
 	req := GetRequest{
 		RequestInternal: RequestInternal{
 			Url:     url,
@@ -86,12 +102,14 @@ func (unit *Unit) GetCaptchaId() error {
 		},
 	}
 	cont, err := req.Perform()
+	unit.LastAnswer.Response = req.RequestInternal.Response
 	if err != nil {
 		return UnitError{
 			Code:    CaptchaIdError,
 			Message: err.Error(),
 		}
 	}
+	unit.LastAnswer.Body = cont
 	var response struct {
 		Id     string
 		Result int
@@ -100,7 +118,7 @@ func (unit *Unit) GetCaptchaId() error {
 	if response.Id == "" {
 		return UnitError{
 			Code:    CaptchaIdParsingError,
-			Message: string(cont),
+			Message: "unexpected answer",
 		}
 	}
 	unit.CaptchaId = response.Id
@@ -113,6 +131,9 @@ func (unit *Unit) GetCaptchaImage() ([]byte, error) {
 		CaptchaApi,
 		unit.CaptchaId,
 	)
+	unit.LastAnswer = Answer{
+		Stage: CaptchaImage,
+	}
 	req := GetRequest{
 		RequestInternal{
 			Url:     url,
@@ -121,7 +142,9 @@ func (unit *Unit) GetCaptchaImage() ([]byte, error) {
 			Timeout: time.Second * 30,
 		},
 	}
-	return req.Perform()
+	img, err := req.Perform()
+	unit.LastAnswer.Response = req.RequestInternal.Response
+	return img, err
 }
 
 func (unit *Unit) SolveCaptcha() error {
@@ -131,6 +154,19 @@ func (unit *Unit) SolveCaptcha() error {
 			Code:    CaptchaImageError,
 			Message: err.Error(),
 		}
+	}
+	unit.LastAnswer.Body = img
+	if unit.LastAnswer.Response.StatusCode != 200 {
+		return UnitError{
+			Code: CaptchaImageError,
+			Message: fmt.Sprintf(
+				"server response: %s",
+				unit.LastAnswer.Response.Status,
+			),
+		}
+	}
+	unit.LastAnswer = Answer{
+		Stage: CaptchaSolving,
 	}
 	ioutil.WriteFile("img.png", img, 0644)
 	fmt.Scan(&unit.CaptchaValue)
@@ -178,14 +214,18 @@ func (unit *Unit) SendPost() error {
 			},
 		}
 	}
+	unit.LastAnswer = Answer{
+		Stage: SendingPost,
+	}
 	resp, err := req.Perform()
+	unit.LastAnswer.Response = req.Request.RequestInternal.Response
 	if err != nil {
 		return UnitError{
 			Code:    SendPostError,
 			Message: err.Error(),
 		}
 	}
-	unit.Log(string(resp))
+	unit.LastAnswer.Body = resp
 	return nil
 }
 
