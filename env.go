@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode"
 )
 
 var (
@@ -30,8 +31,12 @@ type Env struct {
 	WipeMode uint8
 	PostSettings
 
-	Proxies      []string // TODO: proxies type
-	Media, Texts []string
+	Proxies []string // TODO: proxies type
+	Texts   []string
+	Media   []struct {
+		Ext     string
+		Content []byte
+	}
 
 	Errors []error
 }
@@ -61,7 +66,18 @@ func (env *Env) GetMedia(path string) error {
 	for i := range entry {
 		for j := range exts {
 			if strings.HasSuffix(entry[i].Name(), exts[j]) {
-				env.Media = append(env.Media, entry[i].Name())
+				ent := struct {
+					Ext     string
+					Content []byte
+				}{}
+				ent.Ext = exts[j]
+				ent.Content, err = os.ReadFile(
+					path + "/" + entry[i].Name(),
+				)
+				if err != nil {
+					return err
+				}
+				env.Media = append(env.Media, ent)
 			}
 		}
 	}
@@ -73,7 +89,17 @@ func (env *Env) GetTexts(path string) error {
 	if err != nil {
 		return err
 	}
-	env.Proxies = strings.Split(string(cont), "\n\n")
+	texts := strings.Split(string(cont), "\n\n")
+	for _, text := range texts {
+		if Any([]rune(text), func(r rune) bool {
+			return !unicode.IsSpace(r)
+		}) {
+			env.Texts = append(env.Texts, text)
+		}
+	}
+	if len(env.Texts) == 0 {
+		env.Texts = append(env.Texts, " ")
+	}
 	return nil
 }
 

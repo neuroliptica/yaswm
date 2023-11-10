@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"time"
 )
@@ -144,7 +145,7 @@ func (unit *Unit) SendPost() error {
 	params := map[string]string{
 		"task":             "post",
 		"captcha_type":     "2chcaptcha",
-		"comment":          "факинг щит!",
+		"comment":          unit.Env.Texts[rand.Intn(len(unit.Env.Texts))],
 		"board":            unit.Env.Board,
 		"thread":           unit.Env.Thread,
 		"2chcaptcha_id":    unit.CaptchaId,
@@ -156,21 +157,26 @@ func (unit *Unit) SendPost() error {
 		Cookies: unit.Cookies,
 		Timeout: time.Second * 30,
 	}
-	file, _ := ioutil.ReadFile("./res/test.png")
-	form := FilesForm{
-		Name: "file[]",
-		Files: map[string][]byte{
-			".png": file,
-		},
-	}
 	req := PostMultipartRequest{
 		Request: PostRequest{
 			RequestInternal: ReqInternal,
 		},
-		Form:   form,
 		Params: params,
 	}
-
+	if len(unit.Env.Media) != 0 {
+		file := unit.Env.Media[rand.Intn(len(unit.Env.Media))]
+		name := fmt.Sprintf(
+			"%d%s",
+			time.Now().Unix(),
+			file.Ext,
+		)
+		req.Form = FilesForm{
+			Name: "file[]",
+			Files: map[string][]byte{
+				name: file.Content,
+			},
+		}
+	}
 	resp, err := req.Perform()
 	if err != nil {
 		return err
