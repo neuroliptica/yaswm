@@ -30,6 +30,7 @@ const (
 	CaptchaIdError
 	CaptchaIdParsingError
 	CaptchaImageError
+	SendPostError
 )
 
 type UnitError struct {
@@ -179,7 +180,10 @@ func (unit *Unit) SendPost() error {
 	}
 	resp, err := req.Perform()
 	if err != nil {
-		return err
+		return UnitError{
+			Code:    SendPostError,
+			Message: err.Error(),
+		}
 	}
 	unit.Log(string(resp))
 	return nil
