@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
@@ -40,6 +41,13 @@ func (internal *RequestInternal) Do(req *http.Request) (*http.Response, error) {
 	client := &http.Client{
 		Timeout: internal.Timeout,
 	}
+	defaultTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			MaxVersion:         tls.VersionTLS13,
+			InsecureSkipVerify: true,
+		},
+	}
+	client.Transport = defaultTransport
 	if internal.Transport != nil {
 		client.Transport = internal.Transport
 	}
