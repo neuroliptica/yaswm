@@ -57,7 +57,7 @@ func (e UnitError) Error() string {
 }
 
 type Unit struct {
-	Proxy   any // todo
+	Proxy   Proxy
 	Cookies []*http.Cookie
 	Headers map[string]string
 

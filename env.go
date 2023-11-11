@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	WipeModeFlag = flag.Uint("mode", RandomThreads, "set up wipe mode.")
-	BoardFlag    = flag.String("board", "b", "set up board.")
-	ThreadFlag   = flag.String("thread", "0", "set up thread id.")
-	EmailFlag    = flag.String("email", "", "set up email field value.")
+	WipeModeFlag  = flag.Uint("mode", RandomThreads, "set up wipe mode.")
+	BoardFlag     = flag.String("board", "b", "set up board.")
+	ThreadFlag    = flag.String("thread", "0", "set up thread id.")
+	EmailFlag     = flag.String("email", "", "set up email field value.")
+	InitLimitFlag = flag.Uint("I", 1, "maximum web drivers running at once")
 )
 
 // Wipe modes.
@@ -21,6 +22,8 @@ const (
 	RandomThreads
 	Creating
 )
+
+type void = struct{}
 
 type PostSettings struct {
 	Board, Thread, Email string
@@ -38,7 +41,7 @@ type Env struct {
 		Content []byte
 	}
 
-	Errors []error
+	Limiter chan void
 }
 
 func (env *Env) GetProxies(path string) error {
@@ -117,8 +120,10 @@ func (env *Env) ParsePostSettings() {
 	env.Email = *EmailFlag
 }
 
-func (env *Env) ParsingFailed() bool {
-	return len(env.Errors) != 0
+func (env *Env) ParseOther() error {
+	if *InitLimitFlag == 0 {
+		return fmt.Errorf("-I cannot be below 1")
+	}
+	env.Limiter = make(chan void, *InitLimitFlag)
+	return nil
 }
-
-// Env{}.ParseWipeMode().ParsePostSettings().GetProxies().GetMedia().

@@ -23,6 +23,7 @@ func main() {
 			env.ParsePostSettings()
 			return nil
 		},
+		env.ParseOther,
 		func() error { return env.GetMedia("./res") },
 		func() error { return env.GetTexts("./res/texts.txt") },
 		//func() error { return env.GetProxies("adsas") },
