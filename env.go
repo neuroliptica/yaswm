@@ -45,8 +45,6 @@ type Env struct {
 }
 
 func (env *Env) GetProxies(path string) error {
-	logger := MakeLogger("proxies").BindChanReader(&defaultReader)
-
 	cont, err := os.ReadFile(path)
 	if err != nil {
 		return err

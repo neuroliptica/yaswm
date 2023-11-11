@@ -75,11 +75,11 @@ type Unit struct {
 }
 
 func (unit *Unit) Log(msg ...any) {
-	unit.Logger.Log(msg...)
+	logger.Log(fmt.Sprintf("[%s] %s", unit.Proxy.String(), fmt.Sprint(msg...)))
 }
 
 func (unit *Unit) Logf(format string, msg ...any) {
-	unit.Logger.Logf(format, msg...)
+	logger.Logf(fmt.Sprintf("[%s] ", unit.Proxy)+format, msg...)
 }
 
 func (unit *Unit) GetCaptchaId() error {
