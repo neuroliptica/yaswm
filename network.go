@@ -51,6 +51,7 @@ func (internal *RequestInternal) Do(req *http.Request) (*http.Response, error) {
 	if internal.Transport != nil {
 		client.Transport = internal.Transport
 	}
+	client.Transport.(*http.Transport).ProxyConnectHeader = req.Header
 	return client.Do(req)
 }
 
@@ -78,8 +79,10 @@ func (greq *GetRequest) Perform() ([]byte, error) {
 		return nil, err
 	}
 	greq.RequestInternal.Set(req)
+	logger.Log(req)
 	greq.Response, err = greq.RequestInternal.Do(req)
 	if err != nil {
+		logger.Log(err)
 		return nil, err
 	}
 	defer greq.Response.Body.Close()

@@ -79,7 +79,7 @@ func (unit *Unit) Log(msg ...any) {
 }
 
 func (unit *Unit) Logf(format string, msg ...any) {
-	logger.Logf(fmt.Sprintf("[%s] ", unit.Proxy)+format, msg...)
+	logger.Logf(fmt.Sprintf("[%s] ", unit.Proxy.String())+format, msg...)
 }
 
 func (unit *Unit) GetCaptchaId() error {
@@ -95,10 +95,11 @@ func (unit *Unit) GetCaptchaId() error {
 	}
 	req := GetRequest{
 		RequestInternal: RequestInternal{
-			Url:     url,
-			Headers: unit.Headers,
-			Cookies: unit.Cookies,
-			Timeout: time.Second * 30,
+			Url:       url,
+			Headers:   unit.Headers,
+			Cookies:   unit.Cookies,
+			Timeout:   time.Second * 30,
+			Transport: unit.Proxy.Transport(),
 		},
 	}
 	cont, err := req.Perform()
@@ -136,10 +137,11 @@ func (unit *Unit) GetCaptchaImage() ([]byte, error) {
 	}
 	req := GetRequest{
 		RequestInternal{
-			Url:     url,
-			Headers: unit.Headers,
-			Cookies: unit.Cookies,
-			Timeout: time.Second * 30,
+			Url:       url,
+			Headers:   unit.Headers,
+			Cookies:   unit.Cookies,
+			Timeout:   time.Second * 30,
+			Transport: unit.Proxy.Transport(),
 		},
 	}
 	img, err := req.Perform()
@@ -189,10 +191,11 @@ func (unit *Unit) SendPost() error {
 		"2chcaptcha_value": unit.CaptchaValue,
 	}
 	ReqInternal := RequestInternal{
-		Url:     url,
-		Headers: unit.Headers,
-		Cookies: unit.Cookies,
-		Timeout: time.Second * 30,
+		Url:       url,
+		Headers:   unit.Headers,
+		Cookies:   unit.Cookies,
+		Timeout:   time.Second * 30,
+		Transport: unit.Proxy.Transport(),
 	}
 	req := PostMultipartRequest{
 		Request: PostRequest{
@@ -204,7 +207,7 @@ func (unit *Unit) SendPost() error {
 		file := unit.Env.Media[rand.Intn(len(unit.Env.Media))]
 		name := fmt.Sprintf(
 			"%d%s",
-			time.Now().Unix(),
+			time.Now().UnixNano(),
 			file.Ext,
 		)
 		req.Form = FilesForm{
