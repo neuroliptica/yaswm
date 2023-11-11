@@ -1,10 +1,15 @@
 package main
 
 import (
+	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 	"unicode"
+
+	"golang.org/x/net/proxy"
 )
 
 var protos = map[string]bool{
@@ -18,9 +23,14 @@ type Proxy struct {
 	Protocol    string
 	Ip, Port    string
 	Login, Pass string
+
+	Localhost bool
 }
 
 func (p *Proxy) String() string {
+	if p.Localhost {
+		return "localhost"
+	}
 	return p.Ip + ":" + p.Port
 }
 
@@ -73,6 +83,10 @@ func (p *Proxy) Parse(word string) error {
 	word = string(Filter([]rune(word), func(r rune) bool {
 		return !unicode.IsSpace(r)
 	}))
+	if word == "localhost" {
+		p.Localhost = true
+		return nil
+	}
 	err := Maybe{
 		func() error { return p.ParseProto(&word) },
 		func() error { return p.ParseCredits(&word) },
@@ -87,4 +101,51 @@ func (p *Proxy) Parse(word string) error {
 		return fmt.Errorf("%s invalid format", p)
 	}
 	return nil
+}
+
+func (p *Proxy) AuthHeader() string {
+	credits := p.Login + ":" + p.Pass
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(credits))
+}
+
+func (p *Proxy) Transport() *http.Transport {
+	config := &tls.Config{
+		MaxVersion:         tls.VersionTLS13,
+		InsecureSkipVerify: true,
+	}
+	if p.Localhost {
+		return &http.Transport{
+			TLSClientConfig: config,
+		}
+	}
+	proto := make(map[string]func(string, *tls.Conn) http.RoundTripper)
+	transport := &http.Transport{
+		TLSClientConfig:   config,
+		TLSNextProto:      proto,
+		DisableKeepAlives: true,
+	}
+	// socks
+	if p.Socks() {
+		auth := &proxy.Auth{
+			User:     p.Login,
+			Password: p.Pass,
+		}
+		if !p.Private() {
+			auth = nil
+		}
+		dialer, _ := proxy.SOCKS5("tcp", p.String(), auth, proxy.Direct)
+		transport.Dial = dialer.Dial
+	} else {
+		// http(s)
+		transport.Proxy = http.ProxyURL(p.AddrParsed)
+	}
+	return transport
+}
+
+func (p *Proxy) CheckAlive() bool {
+	return true
+}
+
+func (p *Proxy) GetCookies() ([]*http.Cookie, error) {
+	return nil, nil
 }
