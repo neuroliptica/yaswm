@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
-	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"unicode"
 
@@ -24,6 +24,7 @@ type Proxy struct {
 	Ip, Port    string
 	Login, Pass string
 
+	Addr      *url.URL
 	Localhost bool
 }
 
@@ -35,7 +36,7 @@ func (p *Proxy) String() string {
 }
 
 func (p *Proxy) Http() bool {
-	return p.Protocol == "http" || p.Protocol == "https"
+	return p.Protocol == "http"
 }
 
 func (p *Proxy) Socks() bool {
@@ -52,6 +53,9 @@ func (p *Proxy) ParseProto(word *string) error {
 		return fmt.Errorf("invalid protocol")
 	}
 	p.Protocol = a[0]
+	if p.Protocol == "https" {
+		p.Protocol = "http"
+	}
 	*word = a[1]
 	return nil
 }
@@ -96,9 +100,9 @@ func (p *Proxy) Parse(word string) error {
 	if err != nil {
 		return err
 	}
-	r := net.ParseIP(p.Ip)
-	if r == nil {
-		return fmt.Errorf("%s invalid format", p)
+	p.Addr, err = url.Parse(p.Protocol + "://" + p.String())
+	if err != nil {
+		return fmt.Errorf("%s invalid format: %v", p, err)
 	}
 	return nil
 }
@@ -137,7 +141,7 @@ func (p *Proxy) Transport() *http.Transport {
 		transport.Dial = dialer.Dial
 	} else {
 		// http(s)
-		transport.Proxy = http.ProxyURL(p.AddrParsed)
+		transport.Proxy = http.ProxyURL(p.Addr)
 	}
 	return transport
 }
