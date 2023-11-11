@@ -35,6 +35,18 @@ func (unit *Unit) Run() {
 		}
 
 	case NoCookies:
+		unit.Env.Limiter <- void{}
+		cookies, err := unit.Proxy.GetCookies()
+		<-unit.Env.Limiter
+
+		if err == nil {
+			unit.Cookies = cookies
+			unit.State = Avaiable
+			return
+		}
+		// logging
+		// +failed, maybe filter
+
 	case Banned:
 	case Failed:
 	}

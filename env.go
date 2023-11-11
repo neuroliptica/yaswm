@@ -34,7 +34,7 @@ type Env struct {
 	WipeMode uint8
 	PostSettings
 
-	Proxies []string // TODO: proxies type
+	Proxies []Proxy // TODO: proxies type
 	Texts   []string
 	Media   []struct {
 		Ext     string
@@ -45,11 +45,22 @@ type Env struct {
 }
 
 func (env *Env) GetProxies(path string) error {
+	logger := MakeLogger("proxies").BindChanReader(&defaultReader)
+
 	cont, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	env.Proxies = strings.Split(string(cont), "\n")
+	proxies := strings.Split(string(cont), "\n")
+	for _, p := range proxies {
+		proxy := Proxy{}
+		err = proxy.Parse(p)
+		if err != nil {
+			logger.Logf("[%s] parsing failed: %v", p, err)
+			continue
+		}
+		env.Proxies = append(env.Proxies, proxy)
+	}
 	return nil
 }
 

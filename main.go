@@ -26,13 +26,15 @@ func main() {
 		env.ParseOther,
 		func() error { return env.GetMedia("./res") },
 		func() error { return env.GetTexts("./res/texts.txt") },
-		//func() error { return env.GetProxies("adsas") },
-	}.Eval()
+		func() error { return env.GetProxies("./res/proxies.conf") },
+	}.
+		Eval()
 
 	if err != nil {
 		logger.Log(err.Error())
 		return
 	}
+	return
 
 	test := Unit{
 		Env:    &env,
