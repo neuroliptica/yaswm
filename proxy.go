@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 	"unicode"
 
+	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/proto"
 	"golang.org/x/net/proxy"
 )
 
@@ -40,7 +43,7 @@ func (p *Proxy) Http() bool {
 }
 
 func (p *Proxy) Socks() bool {
-	return !p.Http()
+	return p.Protocol == "socks4" || p.Protocol == "socks5"
 }
 
 func (p *Proxy) Private() bool {
@@ -150,6 +153,84 @@ func (p *Proxy) CheckAlive() bool {
 	return true
 }
 
-func (p *Proxy) GetCookies() ([]*http.Cookie, error) {
-	return nil, nil
+func (p *Proxy) GetCookies() (cookies []*http.Cookie, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			//logger("[rod-debug] panic!: %v", r)
+			err = fmt.Errorf("возникла внутренняя ошибка")
+		}
+	}()
+	browser := rod.New().Timeout(2 * time.Minute).MustConnect()
+	defer browser.Close()
+
+	page := browser.MustPage("")
+	router := page.HijackRequests()
+	defer router.Stop()
+
+	// ignore
+	router.MustAdd("*.jpg", func(ctx *rod.Hijack) {
+		ctx.Response.Fail(proto.NetworkErrorReasonAborted)
+	})
+	router.MustAdd("*.gif", func(ctx *rod.Hijack) {
+		ctx.Response.Fail(proto.NetworkErrorReasonAborted)
+	})
+	router.MustAdd("*.png", func(ctx *rod.Hijack) {
+		ctx.Response.Fail(proto.NetworkErrorReasonAborted)
+	})
+	router.MustAdd("*google*", func(ctx *rod.Hijack) {
+		ctx.Response.Fail(proto.NetworkErrorReasonAborted)
+	})
+	router.MustAdd("*24smi*", func(ctx *rod.Hijack) {
+		ctx.Response.Fail(proto.NetworkErrorReasonAborted)
+	})
+	router.MustAdd("*yadro.ru*", func(ctx *rod.Hijack) {
+		ctx.Response.Fail(proto.NetworkErrorReasonAborted)
+	})
+
+	router.MustAdd("*", func(ctx *rod.Hijack) {
+		transport := p.Transport()
+		if p.Http() && p.Private() {
+			ctx.Request.Req().Header.Set("Proxy-Authorization", p.AuthHeader())
+		}
+		if !p.Localhost {
+			transport.ProxyConnectHeader = ctx.Request.Req().Header
+		}
+		client := http.Client{
+			Transport: transport,
+			Timeout:   2 * time.Minute,
+		}
+		//logger(fmt.Sprintf("[rod-debug] [%d] %s",
+		//	ctx.Response.Payload().ResponseCode, ctx.Request.URL()))
+		ctx.LoadResponse(&client, true)
+	})
+	go router.Run()
+
+	err = page.Navigate("https://2ch.hk/b")
+	if err != nil {
+		return nil, err
+	}
+	page.MustWaitNavigation()
+
+	time.Sleep(time.Second * 20)
+
+	captchaUrl := "https://2ch.hk/api/captcha/2chcaptcha/id?board=b&thread=0"
+	err = page.Navigate(captchaUrl)
+	if err != nil {
+		return nil, err
+	}
+	page.MustWaitLoad()
+
+	cookie, err := page.Cookies([]string{captchaUrl})
+	if err != nil {
+		return nil, err
+	}
+	for i := range cookie {
+		cookies = append(cookies, &http.Cookie{
+			Name:   cookie[i].Name,
+			Value:  cookie[i].Value,
+			Path:   cookie[i].Path,
+			Domain: cookie[i].Domain,
+		})
+	}
+	return cookies, nil
 }
