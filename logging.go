@@ -53,9 +53,9 @@ func (l *Logger) BindChanReader(ch *ChanReader) *Logger {
 }
 
 func (l *Logger) Log(msg ...any) {
-	l.Chan.Write(fmt.Sprint(msg...))
+	l.Chan.Write("[" + l.Tag + "]    " + fmt.Sprint(msg...))
 }
 
 func (l *Logger) Logf(format string, entries ...any) {
-	l.Chan.Write(fmt.Sprintf(format, entries...))
+	l.Chan.Write("[" + l.Tag + "]    " + fmt.Sprintf(format, entries...))
 }
