@@ -20,6 +20,7 @@ const (
 	NoCookies
 	Banned
 	Failed
+	SessionFailed
 )
 
 // Posting stages
@@ -69,7 +70,8 @@ type Unit struct {
 
 	CaptchaId, CaptchaValue string
 
-	FailedTimes  int
+	FailedRequests, FailedSessions uint
+
 	LastAnswer   Answer
 	BanTimestamp time.Time
 }
