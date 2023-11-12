@@ -79,10 +79,8 @@ func (greq *GetRequest) Perform() ([]byte, error) {
 		return nil, err
 	}
 	greq.RequestInternal.Set(req)
-	logger.Log(req)
 	greq.Response, err = greq.RequestInternal.Do(req)
 	if err != nil {
-		logger.Log(err)
 		return nil, err
 	}
 	defer greq.Response.Body.Close()
