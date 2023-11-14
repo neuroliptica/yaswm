@@ -21,6 +21,7 @@ const (
 	Banned
 	Failed
 	SessionFailed
+	ClosedSingle
 )
 
 // Posting stages
@@ -31,15 +32,26 @@ const (
 	SendingPost
 )
 
+var StageName = map[int]string{
+	CaptchaId:      "CaptchaId",
+	CaptchaImage:   "CaptchaImage",
+	CaptchaSolving: "CaptchaSolving",
+	SendingPost:    "SendingPost",
+}
+
 // UnitError codes
 const (
-	InternalError = iota
-	BannedError
-	NoCookiesError
-	CaptchaIdError
-	CaptchaIdParsingError
-	CaptchaImageError
-	SendPostError
+	NetworkError = iota
+	ParsingError
+	InternalError
+)
+
+const (
+	ErrorTooFast        = -8
+	ErrorClosed         = -7
+	ErrorBanned         = -6
+	ErrorInvalidCaptcha = -5
+	ErrorAccessDenied   = -4
 )
 
 type Answer struct {
@@ -91,7 +103,6 @@ func (unit *Unit) GetCaptchaId() error {
 		unit.Env.Board,
 		unit.Env.Thread,
 	)
-	unit.Log(url)
 	unit.LastAnswer = Answer{
 		Stage: CaptchaId,
 	}
@@ -108,8 +119,14 @@ func (unit *Unit) GetCaptchaId() error {
 	unit.LastAnswer.Response = req.RequestInternal.Response
 	if err != nil {
 		return UnitError{
-			Code:    CaptchaIdError,
+			Code:    NetworkError,
 			Message: err.Error(),
+		}
+	}
+	if unit.LastAnswer.Response.StatusCode != 200 {
+		return UnitError{
+			Code:    NetworkError,
+			Message: "invalid response code",
 		}
 	}
 	unit.LastAnswer.Body = cont
@@ -120,7 +137,7 @@ func (unit *Unit) GetCaptchaId() error {
 	json.Unmarshal(cont, &response)
 	if response.Id == "" {
 		return UnitError{
-			Code:    CaptchaIdParsingError,
+			Code:    ParsingError,
 			Message: "unexpected answer",
 		}
 	}
@@ -155,18 +172,15 @@ func (unit *Unit) SolveCaptcha() error {
 	img, err := unit.GetCaptchaImage()
 	if err != nil {
 		return UnitError{
-			Code:    CaptchaImageError,
+			Code:    NetworkError,
 			Message: err.Error(),
 		}
 	}
 	unit.LastAnswer.Body = img
 	if unit.LastAnswer.Response.StatusCode != 200 {
 		return UnitError{
-			Code: CaptchaImageError,
-			Message: fmt.Sprintf(
-				"server response: %s",
-				unit.LastAnswer.Response.Status,
-			),
+			Code:    NetworkError,
+			Message: "invalid response code",
 		}
 	}
 	unit.LastAnswer = Answer{
@@ -174,6 +188,8 @@ func (unit *Unit) SolveCaptcha() error {
 	}
 	ioutil.WriteFile("img.png", img, 0644)
 	fmt.Scan(&unit.CaptchaValue)
+
+	unit.Logf("капча: %s", unit.CaptchaValue)
 	return nil
 }
 
@@ -209,7 +225,7 @@ func (unit *Unit) SendPost() error {
 		file := unit.Env.Media[rand.Intn(len(unit.Env.Media))]
 		name := fmt.Sprintf(
 			"%d%s",
-			time.Now().UnixNano(),
+			time.Now().UnixMilli(),
 			file.Ext,
 		)
 		req.Form = FilesForm{
@@ -226,14 +242,136 @@ func (unit *Unit) SendPost() error {
 	unit.LastAnswer.Response = req.Request.RequestInternal.Response
 	if err != nil {
 		return UnitError{
-			Code:    SendPostError,
+			Code:    NetworkError,
 			Message: err.Error(),
 		}
 	}
 	unit.LastAnswer.Body = resp
+	if unit.LastAnswer.Response.StatusCode != 200 {
+		return UnitError{
+			Code:    NetworkError,
+			Message: "invalid response code",
+		}
+	}
 	return nil
 }
 
 func (unit *Unit) HandleAnswer() error {
+	type Ok struct {
+		Num, Result int32
+	}
+
+	type Fail struct {
+		Error struct {
+			Code    int32
+			Message string
+		}
+		Result int32
+	}
+
+	var answer any
+
+	answer = &Ok{}
+	json.Unmarshal(unit.LastAnswer.Body, answer.(*Ok))
+
+	if answer.(*Ok).Num != 0 {
+		return nil
+	}
+
+	answer = &Fail{}
+	json.Unmarshal(unit.LastAnswer.Body, answer.(*Fail))
+
+	fail := answer.(*Fail)
+
+	if fail.Error.Code == 0 && fail.Error.Message != "" {
+		fail.Error.Code = ErrorBanned
+	}
+
+	switch fail.Error.Code {
+
+	case ErrorBanned:
+		unit.State = Banned
+
+	case ErrorAccessDenied:
+		// btw for mobile proxies maybe should filter
+		// ErrorAccessDenied <=> country banned?
+		unit.State = Banned
+
+	case ErrorClosed:
+		unit.State = Avaiable
+		if unit.Env.WipeMode == SingleThread {
+			unit.State = ClosedSingle
+			// will filter this case
+		}
+
+	case ErrorInvalidCaptcha, ErrorTooFast:
+		break
+
+	case 0: // if Fail{} is empty after parsing
+		return UnitError{
+			Code:    ParsingError,
+			Message: "failed to parse makaba answer",
+		}
+	}
 	return nil
+}
+
+func (unit *Unit) HandleError(err UnitError) {
+	switch err.Code {
+	case NetworkError:
+		unit.HandleNetworkError(err)
+
+	case ParsingError:
+		unit.HandleParsingError(err)
+	}
+}
+
+func (unit *Unit) HandleNetworkError(err UnitError) {
+	format := `произошла ошибка! дамп ошибки:
+	error-type: NetworkError;
+	message:    %s;
+	stage:      %s;
+	response:   %v;`
+
+	msg := fmt.Sprintf(
+		format,
+		err.Message,
+		StageName[unit.LastAnswer.Stage],
+		unit.LastAnswer.Response,
+	)
+	unit.Log(msg)
+
+	if unit.LastAnswer.Response == nil {
+		unit.State = Failed
+		return
+	}
+
+	switch unit.LastAnswer.Response.StatusCode {
+	// Cloudfare codes:
+	case 401, 403, 301, 302, 304:
+		unit.State = NoCookies
+
+	case 200:
+		unit.State = Avaiable
+
+	default:
+		unit.State = Failed
+	}
+}
+
+func (unit *Unit) HandleParsingError(err UnitError) {
+	format := `произошла ошибка! дамп ошибки:
+	error-type: ParsingError;
+	message:    %s;
+	stage:      %s;
+	last-body:  %s;`
+
+	msg := fmt.Sprintf(
+		format,
+		err.Message,
+		StageName[unit.LastAnswer.Stage],
+		unit.LastAnswer.Body,
+	)
+	unit.Log(msg)
+	// TODO
 }

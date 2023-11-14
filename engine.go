@@ -5,7 +5,10 @@ func (unit *Unit) Run() {
 	case Avaiable:
 		err := Maybe{
 			unit.GetCaptchaId,
-			unit.SolveCaptcha,
+			func() error {
+				unit.Log("получаю и решаю капчу...")
+				return unit.SolveCaptcha()
+			},
 			func() error {
 				if unit.Env.WipeMode != RandomThreads {
 					return nil
@@ -13,21 +16,24 @@ func (unit *Unit) Run() {
 				return unit.GetRandomThread()
 			},
 			unit.SendPost,
-			unit.HandleAnswer,
+			func() error {
+				err := unit.HandleAnswer()
+				if err == nil {
+					unit.Log(string(unit.LastAnswer.Body))
+				}
+				return err
+			},
 		}.
 			Eval()
 		if err == nil {
 			unit.FailedRequests = 0
-			// timeout maybe?
 			return
 		}
-		unit.Logf("ошибка: %v", err)
-
-		// handleError
+		unit.HandleError(err.(UnitError))
 
 	case NoCookies:
 		unit.Env.Limiter <- void{}
-		unit.Log("получаю печенюшки...")
+		unit.Log("сессия невалидна, получаю печенюшки...")
 		cookies, err := unit.Proxy.GetCookies()
 		<-unit.Env.Limiter
 
@@ -62,5 +68,8 @@ func (unit *Unit) Run() {
 		}
 		unit.State = NoCookies
 
+	case ClosedSingle:
+		unit.Log("тред закрыт, не могу больше годнопостить")
+		return
 	}
 }
