@@ -17,9 +17,9 @@ func (unit *Unit) Run() {
 			},
 			unit.SendPost,
 			func() error {
-				err := unit.HandleAnswer()
-				if err == nil {
-					unit.Log(string(unit.LastAnswer.Body))
+				msg, err := unit.HandleAnswer()
+				if len(msg) != 0 {
+					unit.Log(msg)
 				}
 				return err
 			},

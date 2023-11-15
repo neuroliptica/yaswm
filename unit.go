@@ -212,7 +212,7 @@ func (unit *Unit) SendPost() error {
 		Url:       url,
 		Headers:   unit.Headers,
 		Cookies:   unit.Cookies,
-		Timeout:   time.Second * 30,
+		Timeout:   time.Second * 60,
 		Transport: unit.Proxy.Transport(),
 	}
 	req := PostMultipartRequest{
@@ -256,7 +256,7 @@ func (unit *Unit) SendPost() error {
 	return nil
 }
 
-func (unit *Unit) HandleAnswer() error {
+func (unit *Unit) HandleAnswer() (string, error) {
 	type Ok struct {
 		Num, Result int32
 	}
@@ -270,12 +270,14 @@ func (unit *Unit) HandleAnswer() error {
 	}
 
 	var answer any
+	msg := string(unit.LastAnswer.Body)
 
 	answer = &Ok{}
 	json.Unmarshal(unit.LastAnswer.Body, answer.(*Ok))
 
 	if answer.(*Ok).Num != 0 {
-		return nil
+		msg = "OK: " + msg
+		return msg, nil
 	}
 
 	answer = &Fail{}
@@ -308,12 +310,14 @@ func (unit *Unit) HandleAnswer() error {
 		break
 
 	case 0: // if Fail{} is empty after parsing
-		return UnitError{
+		return msg, UnitError{
 			Code:    ParsingError,
 			Message: "failed to parse makaba answer",
 		}
 	}
-	return nil
+
+	msg = fmt.Sprintf("%d: %s", fail.Error.Code, fail.Error.Message)
+	return msg, nil
 }
 
 func (unit *Unit) HandleError(err UnitError) {
@@ -328,10 +332,12 @@ func (unit *Unit) HandleError(err UnitError) {
 
 func (unit *Unit) HandleNetworkError(err UnitError) {
 	format := `произошла ошибка! дамп ошибки:
+{
 	error-type: NetworkError;
 	message:    %s;
 	stage:      %s;
-	response:   %v;`
+	response:   %v;
+}`
 
 	msg := fmt.Sprintf(
 		format,
@@ -361,10 +367,12 @@ func (unit *Unit) HandleNetworkError(err UnitError) {
 
 func (unit *Unit) HandleParsingError(err UnitError) {
 	format := `произошла ошибка! дамп ошибки:
+{
 	error-type: ParsingError;
 	message:    %s;
 	stage:      %s;
-	last-body:  %s;`
+	last-body:  %s;
+}`
 
 	msg := fmt.Sprintf(
 		format,
