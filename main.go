@@ -27,13 +27,23 @@ func main() {
 		env.ParseOther,
 		func() error { return env.GetMedia("./res") },
 		func() error { return env.GetTexts("./res/texts.txt") },
-		func() error { return env.GetProxies("./res/proxies.conf") },
+		func() error {
+			if options.WipeOptions.NoProxy {
+				env.Proxies = append(Proxy{Localhost: true})
+				return nil
+			}
+			return env.GetProxies("./res/proxies.conf")
+		},
 	}.
 		Eval()
 
 	if err != nil {
 		logger.Log(err.Error())
 		return
+	}
+
+	if options.InternalOptions.InitLimit <= 0 {
+		options.InternalOptions.InitLimit = len(env.Proxies)
 	}
 
 	test := Unit{

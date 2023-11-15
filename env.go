@@ -11,24 +11,41 @@ import (
 	"github.com/jessevdk/go-flags"
 )
 
+// Wipe modes
+const (
+	SingleThread = iota
+	RandomThreads
+	Creating
+)
+
+// Anti-captcha
+const (
+	OCR = iota
+	RuCaptcha
+	Manual
+)
+
 type Options struct {
 	WipeOptions struct {
 		WipeMode    uint8  `short:"m" long:"mode" description:"режим вайпа\n0 - один тред\n1 - вся доска\n2 - создавать треды\n" default:"0" default-mask:"вся доска" choice:"0" choice:"1" choice:"2"`
+		AntiCaptcha uint8  `short:"c" long:"captcha" description:"решалка капчи\n0 - нейронка\n1 - RuCaptcha\n2 - вручную\n" default:"0" default-mask:"нейронка" choice:"0" choice:"1" choice:"2"`
+		Key         string `short:"k" long:"key" description:"ключ для API антикапчи"`
 		ImageServer string `short:"s" long:"image-server" description:"сервер для получения картинок"`
-		Timeout     uint   `short:"T" long:"timeout" description:"перерыв между постами для одной прокси в секундах" default:"0"`
+		Timeout     uint   `short:"T" long:"timeout" description:"перерыв между постами для одной прокси в секундах\n" default:"0"`
+		NoProxy     bool   `short:"l" long:"localhost" description:"не использовать прокси"`
 	} `group:"Wipe options"`
 
 	PostOptions struct {
 		Board  string `short:"b" long:"board" default:"b" description:"доска"`
-		Thread string `short:"t" long:"thread" default:"0" description:"id треда если режим один тред" value-name:"id"`
+		Thread string `short:"t" long:"thread" default:"0" description:"id треда если режим один тред" value-name:"ID"`
 		Email  string `short:"e" long:"email" description:"задать значение поля email"`
 	} `group:"Post options"`
 
 	InternalOptions struct {
-		InitLimit           uint32 `short:"I" long:"init-limit" description:"максимальное кол-во параллельно получаемых сессий" default:"1"`
-		RequestsFailedLimit uint   `short:"F" long:"max-r-fail" default:"1" description:"максимальное число неудачных запросов для одной прокси до удаления, без учета получения сессии"`
-		SessionFailedLimit  uint   `short:"S" long:"max-s-fail" default:"1" description:"максимальное число попыток получить сессию (обойти клауду) для одной прокси до удаления"`
-		FilterBanned        bool   `short:"f" long:"filter" description:"удалять прокси после бана"`
+		InitLimit           int  `short:"I" long:"init-limit" description:"максимальное кол-во параллельно получаемых сессий (-1 - по числу проксей)" default:"1"`
+		RequestsFailedLimit uint `short:"F" long:"max-r-fail" default:"1" description:"максимальное число неудачных запросов для одной прокси до удаления, без учета получения сессии"`
+		SessionFailedLimit  uint `short:"S" long:"max-s-fail" default:"1" description:"максимальное число попыток получить сессию (обойти клауду) для одной прокси до удаления"`
+		FilterBanned        bool `short:"f" long:"filter" description:"удалять прокси после бана"`
 
 		Verbose bool `short:"v" long:"verbose" description:"дополнительные логи"`
 	} `group:"Internal options"`
@@ -37,13 +54,6 @@ type Options struct {
 var (
 	options Options
 	parser  = flags.NewParser(&options, flags.Default)
-)
-
-// Wipe modes.
-const (
-	SingleThread = iota
-	RandomThreads
-	Creating
 )
 
 type void = struct{}
