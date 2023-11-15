@@ -1,22 +1,40 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"unicode"
+
+	"github.com/jessevdk/go-flags"
 )
 
+type Options struct {
+	WipeOptions struct {
+		WipeMode    uint8  `short:"m" long:"mode" description:"режим вайпа\n0 - один тред\n1 - вся доска\n2 - создавать треды\n" default:"0" default-mask:"вся доска" choice:"0" choice:"1" choice:"2"`
+		ImageServer string `short:"s" long:"image-server" description:"сервер для получения картинок"`
+		Timeout     uint   `short:"T" long:"timeout" description:"перерыв между постами для одной прокси в секундах" default:"0"`
+	} `group:"Wipe options"`
+
+	PostOptions struct {
+		Board  string `short:"b" long:"board" default:"b" description:"доска"`
+		Thread string `short:"t" long:"thread" default:"0" description:"id треда если режим один тред" value-name:"id"`
+		Email  string `short:"e" long:"email" description:"задать значение поля email"`
+	} `group:"Post options"`
+
+	InternalOptions struct {
+		InitLimit           uint32 `short:"I" long:"init-limit" description:"максимальное кол-во параллельно получаемых сессий" default:"1"`
+		RequestsFailedLimit uint   `short:"F" long:"max-r-fail" default:"1" description:"максимальное число неудачных запросов для одной прокси до удаления, без учета получения сессии"`
+		SessionFailedLimit  uint   `short:"S" long:"max-s-fail" default:"1" description:"максимальное число попыток получить сессию (обойти клауду) для одной прокси до удаления"`
+		FilterBanned        bool   `short:"f" long:"filter" description:"удалять прокси после бана"`
+
+		Verbose bool `short:"v" long:"verbose" description:"дополнительные логи"`
+	} `group:"Internal options"`
+}
+
 var (
-	WipeModeFlag        = flag.Uint("mode", RandomThreads, "set up wipe mode.")
-	BoardFlag           = flag.String("board", "b", "set up board.")
-	ThreadFlag          = flag.String("thread", "0", "set up thread id.")
-	EmailFlag           = flag.String("email", "", "set up email field value.")
-	InitLimitFlag       = flag.Uint("I", 1, "maximum web drivers running at once")
-	RequestsFailedLimit = flag.Uint("F", 1, "maximum failed requests")
-	SessionsFailedLimit = flag.Uint("S", 1, "maximum failed session requests")
-	FilterBanned        = flag.Bool("filter", false, "filter banned proxies")
+	options Options
+	parser  = flags.NewParser(&options, flags.Default)
 )
 
 // Wipe modes.
@@ -28,14 +46,9 @@ const (
 
 type void = struct{}
 
-type PostSettings struct {
-	Board, Thread, Email string
-	// Thread = 0 when creating
-}
-
 type Env struct {
 	WipeMode uint8
-	PostSettings
+	Thread   string // 0 if creating
 
 	Proxies []Proxy // TODO: proxies type
 	Texts   []string
@@ -119,23 +132,18 @@ func (env *Env) GetTexts(path string) error {
 }
 
 func (env *Env) ParseWipeMode() error {
-	env.WipeMode = uint8(*WipeModeFlag)
+	env.WipeMode = options.WipeOptions.WipeMode
 	if env.WipeMode > Creating {
 		return fmt.Errorf("неправильный режим")
 	}
 	return nil
 }
 
-func (env *Env) ParsePostSettings() {
-	env.Board = *BoardFlag
-	env.Thread = *ThreadFlag
-	env.Email = *EmailFlag
-}
-
 func (env *Env) ParseOther() error {
-	if *InitLimitFlag == 0 {
+	if options.InternalOptions.InitLimit == 0 {
 		return fmt.Errorf("-I cannot be below 1")
 	}
-	env.Limiter = make(chan void, *InitLimitFlag)
+	env.Limiter = make(chan void, options.InternalOptions.InitLimit)
+	env.Thread = options.PostOptions.Thread
 	return nil
 }

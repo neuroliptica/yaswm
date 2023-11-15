@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,8 +9,10 @@ import (
 var logger *Logger
 
 func init() {
-	flag.Parse()
 	log.SetFlags(log.Ltime)
+	if _, err := parser.Parse(); err != nil {
+		os.Exit(0)
+	}
 	logger = MakeLogger(filepath.Base(os.Args[0])).
 		BindChanReader(&defaultReader)
 }
@@ -23,16 +24,14 @@ func main() {
 	var env Env
 	err := Maybe{
 		env.ParseWipeMode,
-		func() error {
-			env.ParsePostSettings()
-			return nil
-		},
 		env.ParseOther,
 		func() error { return env.GetMedia("./res") },
 		func() error { return env.GetTexts("./res/texts.txt") },
 		func() error { return env.GetProxies("./res/proxies.conf") },
 	}.
 		Eval()
+
+	logger.Log(options)
 
 	if err != nil {
 		logger.Log(err.Error())

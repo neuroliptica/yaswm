@@ -47,7 +47,7 @@ func (unit *Unit) Run() {
 		unit.State = SessionFailed
 
 	case Banned:
-		if *FilterBanned {
+		if options.InternalOptions.FilterBanned {
 			unit.Log("прокси забанена, удаляю")
 			return
 		}
@@ -55,14 +55,14 @@ func (unit *Unit) Run() {
 
 	case Failed:
 		unit.FailedRequests++
-		if unit.FailedRequests >= *RequestsFailedLimit {
+		if unit.FailedRequests >= options.InternalOptions.RequestsFailedLimit {
 			unit.Log("превышено число неудавшихся запросов, удаляю")
 			return
 		}
 		unit.State = Avaiable
 
 	case SessionFailed:
-		if unit.FailedSessions >= *SessionsFailedLimit {
+		if unit.FailedSessions >= options.InternalOptions.SessionFailedLimit {
 			unit.Log("превышено число неудавшихся сессий, удаляю")
 			return
 		}

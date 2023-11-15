@@ -100,7 +100,7 @@ func (unit *Unit) GetCaptchaId() error {
 	url := fmt.Sprintf(
 		"https://2ch.hk%sid?board=%s&thread=%s",
 		CaptchaApi,
-		unit.Env.Board,
+		options.PostOptions.Board,
 		unit.Env.Thread,
 	)
 	unit.LastAnswer = Answer{
@@ -203,7 +203,7 @@ func (unit *Unit) SendPost() error {
 		"task":             "post",
 		"captcha_type":     "2chcaptcha",
 		"comment":          unit.Env.Texts[rand.Intn(len(unit.Env.Texts))],
-		"board":            unit.Env.Board,
+		"board":            options.PostOptions.Board,
 		"thread":           unit.Env.Thread,
 		"2chcaptcha_id":    unit.CaptchaId,
 		"2chcaptcha_value": unit.CaptchaValue,
