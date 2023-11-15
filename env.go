@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 	"unicode"
@@ -46,16 +48,18 @@ const (
 
 type void = struct{}
 
+type Media struct {
+	Ext     string
+	Content []byte
+}
+
 type Env struct {
 	WipeMode uint8
 	Thread   string // 0 if creating
 
 	Proxies []Proxy // TODO: proxies type
 	Texts   []string
-	Media   []struct {
-		Ext     string
-		Content []byte
-	}
+	Media   []Media
 
 	Limiter chan void
 }
@@ -79,6 +83,9 @@ func (env *Env) GetProxies(path string) error {
 }
 
 func (env *Env) GetMedia(path string) error {
+	if options.WipeOptions.ImageServer != "" {
+		return nil
+	}
 	entry, err := os.ReadDir(path)
 	if err != nil {
 		return err
@@ -146,4 +153,43 @@ func (env *Env) ParseOther() error {
 	env.Limiter = make(chan void, options.InternalOptions.InitLimit)
 	env.Thread = options.PostOptions.Thread
 	return nil
+}
+
+func (env *Env) RandomMedia() (Media, error) {
+	if options.WipeOptions.ImageServer == "" {
+		if len(env.Media) == 0 {
+			return Media{}, errors.New("empty medias array")
+		}
+		return env.Media[rand.Intn(len(env.Media))], nil
+	}
+	req := GetRequest{
+		RequestInternal: RequestInternal{
+			Url: options.WipeOptions.ImageServer,
+		},
+	}
+
+	resp, err := req.Perform()
+	if err != nil {
+		return Media{}, err
+	}
+
+	types := map[string]string{
+		"image/png":  ".png",
+		"image/jpeg": ".jpg",
+	}
+
+	ctype := req.RequestInternal.Response.Header.Get("Content-Type")
+	logger.Log(req.RequestInternal.Response.Header)
+
+	if ctype == "" || types[ctype] == "" {
+		return Media{}, errors.New("invalid Content-Type header")
+	}
+	if req.RequestInternal.Response.StatusCode != 200 {
+		return Media{}, errors.New("invalid response code")
+	}
+
+	return Media{
+		Ext:     types[ctype],
+		Content: resp,
+	}, nil
 }

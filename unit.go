@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -222,7 +223,12 @@ func (unit *Unit) SendPost() error {
 		Params: params,
 	}
 	if len(unit.Env.Media) != 0 {
-		file := unit.Env.Media[rand.Intn(len(unit.Env.Media))]
+		//file := unit.Env.Media[rand.Intn(len(unit.Env.Media))]
+		file, err := unit.Env.RandomMedia()
+		if err != nil {
+			unit.Log(err)
+			os.Exit(0)
+		}
 		name := fmt.Sprintf(
 			"%d%s",
 			time.Now().UnixMilli(),

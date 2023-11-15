@@ -31,8 +31,6 @@ func main() {
 	}.
 		Eval()
 
-	logger.Log(options)
-
 	if err != nil {
 		logger.Log(err.Error())
 		return
