@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
 	"os"
 	"strings"
@@ -58,6 +57,8 @@ var (
 
 type void = struct{}
 
+type Solver = func([]byte, string) (string, error)
+
 type Media struct {
 	Ext     string
 	Content []byte
@@ -72,6 +73,7 @@ type Env struct {
 	Media   []Media
 
 	Limiter chan void
+	Solver  Solver
 }
 
 func (env *Env) GetProxies(path string) error {
@@ -150,18 +152,27 @@ func (env *Env) GetTexts(path string) error {
 
 func (env *Env) ParseWipeMode() error {
 	env.WipeMode = options.WipeOptions.WipeMode
-	if env.WipeMode > Creating {
-		return fmt.Errorf("неправильный режим")
-	}
 	return nil
 }
 
-func (env *Env) ParseOther() error {
+func (env *Env) ParseLimiter() error {
+	if options.InternalOptions.InitLimit <= 0 {
+		options.InternalOptions.InitLimit = len(env.Proxies)
+	}
 	if options.InternalOptions.InitLimit == 0 {
-		return fmt.Errorf("-I cannot be below 1")
+		options.InternalOptions.InitLimit = 1
 	}
 	env.Limiter = make(chan void, options.InternalOptions.InitLimit)
+	return nil
+}
+
+func (env *Env) ParseThread() error {
 	env.Thread = options.PostOptions.Thread
+	if Any([]rune(env.Thread), func(r rune) bool {
+		return !unicode.IsDigit(r)
+	}) {
+		return errors.New("invalid thread id")
+	}
 	return nil
 }
 
