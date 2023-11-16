@@ -62,7 +62,7 @@ func RuCaptchaSolver(img []byte, key string) (string, error) {
 		}
 
 		switch get.Request {
-		case "CAPTCHA_NOT_READY":
+		case "CAPCHA_NOT_READY":
 			break
 
 		default:
@@ -71,9 +71,8 @@ func RuCaptchaSolver(img []byte, key string) (string, error) {
 				Message:  "ошибка солвера",
 			}
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Second * 2)
 	}
-
 }
 
 func RuCaptchaPost(img []byte, key string) (*RuCaptchaResponse, error) {
@@ -131,5 +130,4 @@ func RuCaptchaGet(id string, key string) (*RuCaptchaResponse, error) {
 	json.Unmarshal(resp, answer)
 
 	return answer, nil
-
 }

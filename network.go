@@ -128,6 +128,9 @@ func (preq *PostMultipartRequest) Perform() ([]byte, error) {
 		return nil, err
 	}
 
+	if preq.Request.Headers == nil {
+		preq.Request.Headers = make(map[string]string)
+	}
 	preq.Request.Headers["Content-Type"] = writer.FormDataContentType()
 	preq.Request.RequestInternal.Set(req)
 	preq.Request.Response, err = preq.Request.RequestInternal.Do(req)

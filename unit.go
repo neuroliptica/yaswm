@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"time"
@@ -182,10 +181,17 @@ func (unit *Unit) SolveCaptcha() error {
 	unit.LastAnswer = Answer{
 		Stage: CaptchaSolving,
 	}
-	ioutil.WriteFile("img.png", img, 0644)
-	fmt.Scan(&unit.CaptchaValue)
+	value, err := unit.Env.Solver(img, options.WipeOptions.Key)
 
+	if err != nil {
+		return UnitError{
+			Code:    NetworkError,
+			Message: err.Error(),
+		}
+	}
+	unit.CaptchaValue = value
 	unit.Logf("капча: %s", unit.CaptchaValue)
+
 	return nil
 }
 

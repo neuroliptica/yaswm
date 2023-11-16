@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"os"
 	"strings"
@@ -38,6 +39,7 @@ type Options struct {
 		Board  string `short:"b" long:"board" default:"b" description:"доска"`
 		Thread string `short:"t" long:"thread" default:"0" description:"id треда если режим один тред" value-name:"ID"`
 		Email  string `short:"e" long:"email" description:"задать значение поля email"`
+		Pic    bool   `short:"p" long:"pic" description:"крепить картинку к посту"`
 	} `group:"Post options"`
 
 	InternalOptions struct {
@@ -105,7 +107,7 @@ func (env *Env) GetProxies(path string) error {
 }
 
 func (env *Env) GetMedia(path string) error {
-	if options.WipeOptions.ImageServer != "" {
+	if options.WipeOptions.ImageServer != "" || !options.PostOptions.Pic {
 		return nil
 	}
 	entry, err := os.ReadDir(path)
@@ -134,9 +136,16 @@ func (env *Env) GetMedia(path string) error {
 				if err != nil {
 					return err
 				}
+				if len(ent.Content) >= 2e7 {
+					logger.Logf("%s размер превышает 20mb!", entry[i].Name())
+					continue
+				}
 				env.Media = append(env.Media, ent)
 			}
 		}
+	}
+	if options.PostOptions.Pic && len(env.Media) == 0 {
+		return errors.New("--pics, но ни одного файла не найдено")
 	}
 	return nil
 }
@@ -182,6 +191,30 @@ func (env *Env) ParseThread() error {
 		return !unicode.IsDigit(r)
 	}) {
 		return errors.New("invalid thread id")
+	}
+	return nil
+}
+
+func (env *Env) ParseSolver() error {
+	switch options.WipeOptions.AntiCaptcha {
+
+	case OCR:
+		return errors.New("ocr solver not implemented yet")
+
+	case RuCaptcha:
+		env.Solver = RuCaptchaSolver
+
+	case Manual:
+		env.Solver = func(img []byte, key string) (string, error) {
+			var value string
+			err := os.WriteFile("captcha.png", img, 0664)
+			if err != nil {
+				return value, err
+			}
+			fmt.Scan(&value)
+
+			return value, nil
+		}
 	}
 	return nil
 }
