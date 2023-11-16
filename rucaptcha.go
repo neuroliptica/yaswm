@@ -29,15 +29,11 @@ func RuCaptchaSolver(img []byte, key string) (string, error) {
 	answer, err := RuCaptchaPost(img, key)
 
 	if err != nil {
-		if answer == nil {
-			answer = &RuCaptchaResponse{}
-		}
 		return "", RuCaptchaError{
-			Response: *answer,
+			Response: RuCaptchaResponse{},
 			Message:  "не удалось отправить капчу: " + err.Error(),
 		}
 	}
-
 	if answer.Status != 1 {
 		return "", RuCaptchaError{
 			Response: *answer,
