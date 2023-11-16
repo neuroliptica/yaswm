@@ -23,13 +23,13 @@ func main() {
 
 	var env Env
 	err := Maybe{
-		func() error { return env.GetMedia("./res") },
-		func() error { return env.GetTexts("./res/texts.txt") },
 		func() error {
-			if options.WipeOptions.NoProxy {
-				env.Proxies = append(env.Proxies, Proxy{Localhost: true})
-				return nil
-			}
+			return env.GetMedia("./res")
+		},
+		func() error {
+			return env.GetTexts("./res/texts.txt")
+		},
+		func() error {
 			return env.GetProxies("./res/proxies.conf")
 		},
 		env.ParseWipeMode,
@@ -39,13 +39,13 @@ func main() {
 		Eval()
 
 	if err != nil {
-		logger.Log(err.Error())
+		logger.Log("фатальная ошибка: ", err.Error())
 		return
 	}
 
 	test := Unit{
 		Env:    &env,
-		Proxy:  Proxy{Localhost: true}, //env.Proxies[0],
+		Proxy:  env.Proxies[0],
 		Logger: logger,
 		State:  Avaiable,
 		Headers: map[string]string{

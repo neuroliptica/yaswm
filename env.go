@@ -77,10 +77,16 @@ type Env struct {
 }
 
 func (env *Env) GetProxies(path string) error {
+	if options.WipeOptions.NoProxy {
+		env.Proxies = append(env.Proxies, Proxy{Localhost: true})
+		return nil
+	}
+
 	cont, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
+
 	proxies := strings.Split(string(cont), "\n")
 	for _, p := range proxies {
 		proxy := Proxy{}
@@ -90,6 +96,10 @@ func (env *Env) GetProxies(path string) error {
 			continue
 		}
 		env.Proxies = append(env.Proxies, proxy)
+	}
+
+	if len(env.Proxies) == 0 {
+		return errors.New("no valid proxies found")
 	}
 	return nil
 }
