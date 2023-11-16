@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -75,18 +74,14 @@ type Unit struct {
 	Cookies []*http.Cookie
 	Headers map[string]string
 
-	Env    *Env
-	Logger *Logger
-
-	State                             uint8
-	CurrentExternalIp, PrevExternalIp string
-
 	CaptchaId, CaptchaValue string
 
-	FailedRequests, FailedSessions uint
+	Env   *Env
+	State uint8
 
-	LastAnswer   Answer
-	BanTimestamp time.Time
+	LastAnswer     Answer
+	FailedRequests uint
+	FailedSessions uint
 }
 
 func (unit *Unit) Log(msg ...any) {
@@ -222,12 +217,11 @@ func (unit *Unit) SendPost() error {
 		},
 		Params: params,
 	}
-	if len(unit.Env.Media) != 0 {
-		//file := unit.Env.Media[rand.Intn(len(unit.Env.Media))]
+	for options.PostOptions.Pic {
 		file, err := unit.Env.RandomMedia()
 		if err != nil {
-			unit.Log(err)
-			os.Exit(0)
+			unit.Logf("не удалось прекрепить файл: %v", err)
+			break
 		}
 		name := fmt.Sprintf(
 			"%d%s",
@@ -240,6 +234,7 @@ func (unit *Unit) SendPost() error {
 				name: file.Content,
 			},
 		}
+		break
 	}
 	unit.LastAnswer = Answer{
 		Stage: SendingPost,

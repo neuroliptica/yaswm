@@ -35,6 +35,7 @@ func main() {
 		env.ParseWipeMode,
 		env.ParseLimiter,
 		env.ParseThread,
+		env.ParseSolver,
 	}.
 		Eval()
 
@@ -44,10 +45,9 @@ func main() {
 	}
 
 	test := Unit{
-		Env:    &env,
-		Proxy:  env.Proxies[0],
-		Logger: logger,
-		State:  Avaiable,
+		Env:   &env,
+		Proxy: env.Proxies[0],
+		State: Avaiable,
 		Headers: map[string]string{
 			"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0",
 		},
