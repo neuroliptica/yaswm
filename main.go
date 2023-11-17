@@ -24,13 +24,16 @@ func main() {
 	var env Env
 	err := Maybe{
 		func() error {
-			return env.GetMedia("./res")
+			return env.ParseMedia("./res")
 		},
 		func() error {
-			return env.GetTexts("./res/texts.txt")
+			return env.ParseTexts("./res/texts.txt")
 		},
 		func() error {
-			return env.GetProxies("./res/proxies.conf")
+			return env.ParseUserAgents("./res/UserAgents.conf")
+		},
+		func() error {
+			return env.ParseProxies("./res/proxies.conf")
 		},
 		env.ParseWipeMode,
 		env.ParseLimiter,

@@ -70,17 +70,43 @@ type Env struct {
 	WipeMode uint8
 	Thread   string // 0 if creating
 
-	Proxies []Proxy // TODO: proxies type
-	Texts   []string
-	Media   []Media
+	Proxies    []Proxy // TODO: proxies type
+	UserAgents []string
+	Texts      []string
+	Media      []Media
 
 	Limiter chan void
 	Solver  Solver
 }
 
-func (env *Env) GetProxies(path string) error {
+func (env *Env) ParseUserAgents(path string) error {
+	cont, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+
+	agents := strings.Split(string(cont), "\n")
+	env.UserAgents = Filter(agents, func(agent string) bool {
+		return Any([]rune(agent), func(r rune) bool {
+			return !unicode.IsSpace(r)
+		})
+	})
+
+	if len(env.UserAgents) == 0 {
+		env.UserAgents = append(
+			env.UserAgents,
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36",
+		)
+	}
+
+	return nil
+}
+
+func (env *Env) ParseProxies(path string) error {
 	if options.WipeOptions.NoProxy {
-		env.Proxies = append(env.Proxies, Proxy{Localhost: true})
+		env.Proxies = append(env.Proxies, Proxy{
+			Localhost: true,
+		})
 		return nil
 	}
 
@@ -90,6 +116,12 @@ func (env *Env) GetProxies(path string) error {
 	}
 
 	proxies := strings.Split(string(cont), "\n")
+	proxies = Filter(proxies, func(proxy string) bool {
+		return Any([]rune(proxy), func(r rune) bool {
+			return !unicode.IsSpace(r)
+		})
+	})
+
 	for _, p := range proxies {
 		proxy := Proxy{}
 		err = proxy.Parse(p)
@@ -103,10 +135,11 @@ func (env *Env) GetProxies(path string) error {
 	if len(env.Proxies) == 0 {
 		return errors.New("no valid proxies found")
 	}
+
 	return nil
 }
 
-func (env *Env) GetMedia(path string) error {
+func (env *Env) ParseMedia(path string) error {
 	if options.WipeOptions.ImageServer != "" || !options.PostOptions.Pic {
 		return nil
 	}
@@ -150,22 +183,23 @@ func (env *Env) GetMedia(path string) error {
 	return nil
 }
 
-func (env *Env) GetTexts(path string) error {
+func (env *Env) ParseTexts(path string) error {
 	cont, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
+
 	texts := strings.Split(string(cont), "\n\n")
-	for _, text := range texts {
-		if Any([]rune(text), func(r rune) bool {
+	env.Texts = Filter(texts, func(text string) bool {
+		return Any([]rune(text), func(r rune) bool {
 			return !unicode.IsSpace(r)
-		}) {
-			env.Texts = append(env.Texts, text)
-		}
-	}
+		})
+	})
+
 	if len(env.Texts) == 0 {
 		env.Texts = append(env.Texts, " ")
 	}
+
 	return nil
 }
 
@@ -217,6 +251,10 @@ func (env *Env) ParseSolver() error {
 		}
 	}
 	return nil
+}
+
+func (env *Env) RandomUserAgent() string {
+	return env.UserAgents[rand.Intn(len(env.UserAgents))]
 }
 
 func (env *Env) RandomMedia() (Media, error) {

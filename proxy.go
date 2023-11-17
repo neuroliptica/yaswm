@@ -32,6 +32,8 @@ type Proxy struct {
 
 	Addr      *url.URL
 	Localhost bool
+
+	UserAgent string
 }
 
 func (p *Proxy) String() string {
@@ -164,7 +166,7 @@ type ScreenStructure struct {
 
 // Gen Random Device Screen
 func RandomDeviceScreen() ScreenStructure {
-	Screens := [7]ScreenStructure{
+	Screens := []ScreenStructure{
 		{1366, 768},
 		{1920, 1080},
 		{1280, 1024},
@@ -215,7 +217,7 @@ func (p *Proxy) GetCookies() (cookies []*http.Cookie, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			//logger("[rod-debug] panic!: %v", r)
-			err = fmt.Errorf("возникла внутренняя ошибка")
+			err = fmt.Errorf("возникла внутренняя ошибкаЖ %v", r)
 		}
 	}()
 
@@ -228,7 +230,7 @@ func (p *Proxy) GetCookies() (cookies []*http.Cookie, err error) {
 	browser := rod.New().ControlURL(u).Timeout(2 * time.Minute).MustConnect()
 	defer browser.Close()
 
-	Device := RandomDevice("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36")
+	Device := RandomDevice(p.UserAgent)
 	page := browser.MustPage("")
 	page.MustEmulate(Device)
 	page.MustSetViewport(Device.Screen.Horizontal.Width, Device.Screen.Horizontal.Height, 0, false)
@@ -237,9 +239,8 @@ func (p *Proxy) GetCookies() (cookies []*http.Cookie, err error) {
 	page.MustSetExtraHeaders("sec-fetch-site", "same-origin")
 	page.MustSetExtraHeaders("sec-fetch-user", "?1")
 	page.SetUserAgent(&proto.NetworkSetUserAgentOverride{
-		UserAgent:      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36",
+		UserAgent:      p.UserAgent,
 		AcceptLanguage: "ru-RU,ru;=0.9",
-		Platform:       "Windows",
 	})
 	page.MustEvalOnNewDocument(`localStorage.clear();`)
 

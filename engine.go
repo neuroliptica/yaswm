@@ -34,7 +34,10 @@ func (unit *Unit) Run() {
 	case NoCookies:
 		unit.Env.Limiter <- void{}
 		unit.Log("сессия невалидна, получаю печенюшки...")
+
+		unit.Proxy.UserAgent = unit.Env.RandomUserAgent()
 		cookies, err := unit.Proxy.GetCookies()
+
 		<-unit.Env.Limiter
 
 		if err == nil {
