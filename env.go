@@ -40,6 +40,7 @@ type Options struct {
 		Thread string `short:"t" long:"thread" default:"0" description:"id треда если режим один тред" value-name:"ID"`
 		Email  string `short:"e" long:"email" description:"задать значение поля email"`
 		Pic    bool   `short:"p" long:"pic" description:"крепить картинку к посту"`
+		Noise  bool   `short:"n" long:"noise" description:"добавить шумов на картинку"`
 	} `group:"Post options"`
 
 	InternalOptions struct {

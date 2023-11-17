@@ -229,6 +229,24 @@ func (unit *Unit) SendPost() error {
 			unit.Logf("не удалось прекрепить файл: %v", err)
 			break
 		}
+
+		content := file.Content
+
+		for options.PostOptions.Noise {
+			img, err := NewNRGBA(&file)
+			if err != nil {
+				unit.Logf("не удалось создать NRGBA: %v", err)
+				break
+			}
+			b, err := img.DrawNoise().GetBytes()
+			if err != nil {
+				unit.Logf("NRGBA: не удалось получить результат: %v", err)
+				break
+			}
+			content = b
+			break
+		}
+
 		name := fmt.Sprintf(
 			"%d%s",
 			time.Now().UnixMilli(),
@@ -237,7 +255,7 @@ func (unit *Unit) SendPost() error {
 		req.Form = FilesForm{
 			Name: "file[]",
 			Files: map[string][]byte{
-				name: file.Content,
+				name: content,
 			},
 		}
 		break
