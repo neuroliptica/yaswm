@@ -1,4 +1,4 @@
-module katzenzeit
+module wipe
 
 go 1.21.3
 

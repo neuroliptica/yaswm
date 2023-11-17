@@ -358,10 +358,10 @@ func (unit *Unit) HandleError(err UnitError) {
 func (unit *Unit) HandleNetworkError(err UnitError) {
 	format := `произошла ошибка! дамп ошибки:
 {
-	error-type: NetworkError;
-	message:    %s;
-	stage:      %s;
-	response:   %v;
+	error-type: NetworkError
+	message:    %s
+	stage:      %s
+	response:   %v
 }`
 
 	msg := fmt.Sprintf(
@@ -393,10 +393,10 @@ func (unit *Unit) HandleNetworkError(err UnitError) {
 func (unit *Unit) HandleParsingError(err UnitError) {
 	format := `произошла ошибка! дамп ошибки:
 {
-	error-type: ParsingError;
-	message:    %s;
-	stage:      %s;
-	last-body:  %s;
+	error-type: ParsingError
+	message:    %s
+	stage:      %s
+	last-body:  %s
 }`
 
 	msg := fmt.Sprintf(

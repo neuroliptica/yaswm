@@ -18,7 +18,7 @@ type RuCaptchaError struct {
 
 func (err RuCaptchaError) Error() string {
 	return fmt.Sprintf(
-		"RuCaptchaError:{status=%d}{request=%s}: %s",
+		"RuCaptchaError:[status=%d][request=%s]: %s",
 		err.Response.Status,
 		err.Response.Request,
 		err.Message,
@@ -27,7 +27,6 @@ func (err RuCaptchaError) Error() string {
 
 func RuCaptchaSolver(img []byte, key string) (string, error) {
 	answer, err := RuCaptchaPost(img, key)
-
 	if err != nil {
 		return "", RuCaptchaError{
 			Response: RuCaptchaResponse{},
@@ -37,7 +36,7 @@ func RuCaptchaSolver(img []byte, key string) (string, error) {
 	if answer.Status != 1 {
 		return "", RuCaptchaError{
 			Response: *answer,
-			Message:  "неожиданный ответ солвера: " + err.Error(),
+			Message:  "неожиданный ответ солвера",
 		}
 	}
 
