@@ -229,6 +229,10 @@ func (env *Env) ParseThread() error {
 	}) {
 		return errors.New("invalid thread id")
 	}
+
+	if options.WipeOptions.WipeMode == SingleThread && env.Thread == "0" {
+		return errors.New("режим \"один тред\", но id треда не указан!")
+	}
 	return nil
 }
 
@@ -240,6 +244,9 @@ func (env *Env) ParseSolver() error {
 
 	case RuCaptcha:
 		env.Solver = RuCaptchaSolver
+		if options.WipeOptions.Key == "" {
+			return errors.New("ключь API антикапчи не указан!")
+		}
 
 	case Manual:
 		env.Solver = func(img []byte, key string) (string, error) {

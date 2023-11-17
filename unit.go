@@ -296,7 +296,7 @@ func (unit *Unit) SendPost() error {
 			break
 		}
 		for options.PostOptions.Crop {
-			cont, err := Crop(&Meida{Ext: file.Ext, Content: content})
+			cont, err := Crop(&Media{Ext: file.Ext, Content: content})
 			if err != nil {
 				unit.Logf("crop: ошибка: %v", err)
 				break
