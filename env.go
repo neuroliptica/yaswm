@@ -27,7 +27,7 @@ const (
 
 type Options struct {
 	WipeOptions struct {
-		WipeMode    uint8  `short:"m" long:"mode" description:"режим вайпа\n0 - один тред\n1 - вся доска\n2 - создавать треды\n" default:"0" default-mask:"вся доска" choice:"0" choice:"1" choice:"2"`
+		WipeMode    uint8  `short:"m" long:"mode" description:"режим вайпа\n0 - один тред\n1 - вся доска\n2 - создавать треды\n" default:"1" default-mask:"вся доска" choice:"0" choice:"1" choice:"2"`
 		AntiCaptcha uint8  `short:"c" long:"captcha" description:"решалка капчи\n0 - нейронка\n1 - RuCaptcha\n2 - вручную\n" default:"0" default-mask:"нейронка" choice:"0" choice:"1" choice:"2"`
 		Key         string `short:"k" long:"key" description:"ключ для API антикапчи"`
 		ImageServer string `short:"s" long:"image-server" description:"сервер для получения картинок"`

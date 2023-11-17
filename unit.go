@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -29,6 +30,7 @@ const (
 	CaptchaId = iota
 	CaptchaImage
 	CaptchaSolving
+	RandomThread
 	SendingPost
 )
 
@@ -36,6 +38,7 @@ var StageName = map[int]string{
 	CaptchaId:      "CaptchaId",
 	CaptchaImage:   "CaptchaImage",
 	CaptchaSolving: "CaptchaSolving",
+	RandomThread:   "RandomThread",
 	SendingPost:    "SendingPost",
 }
 
@@ -197,8 +200,48 @@ func (unit *Unit) SolveCaptcha() error {
 	return nil
 }
 
-func (unit *Unit) GetRandomThread() error {
-	return nil
+func (unit *Unit) GetRandomThread() (string, error) {
+	url := fmt.Sprintf(
+		"https://2ch.hk/%s/catalog.json",
+		options.PostOptions.Board,
+	)
+	req := GetRequest{
+		RequestInternal: RequestInternal{
+			Url:     url,
+			Timeout: time.Second * 30,
+		},
+	}
+	unit.LastAnswer = Answer{
+		Stage: RandomThread,
+	}
+
+	resp, err := req.Perform()
+	unit.LastAnswer.Response = req.RequestInternal.Response
+
+	if err != nil {
+		return "", UnitError{
+			Code:    NetworkError,
+			Message: "не удалось получить случайный тред: " + err.Error(),
+		}
+	}
+	unit.LastAnswer.Body = resp
+
+	type Catalog struct {
+		Threads []struct{ Num uint64 }
+	}
+
+	cata := Catalog{}
+	json.Unmarshal(resp, &cata)
+
+	if len(cata.Threads) == 0 {
+		return "", UnitError{
+			Code:    ParsingError,
+			Message: "не найдено ни одного треда",
+		}
+	}
+
+	thread := cata.Threads[rand.Intn(len(cata.Threads))].Num
+	return strconv.Itoa(int(thread)), nil
 }
 
 func (unit *Unit) SendPost() error {
@@ -212,6 +255,15 @@ func (unit *Unit) SendPost() error {
 		"2chcaptcha_id":    unit.CaptchaId,
 		"2chcaptcha_value": unit.CaptchaValue,
 	}
+
+	if options.WipeOptions.WipeMode == RandomThreads {
+		thread, err := unit.GetRandomThread()
+		if err != nil {
+			return err
+		}
+		params["thread"] = thread
+	}
+
 	ReqInternal := RequestInternal{
 		Url:       url,
 		Headers:   unit.Headers,
@@ -288,6 +340,11 @@ func (unit *Unit) HandleAnswer() (string, error) {
 		Num, Result int32
 	}
 
+	type OkThread struct {
+		Result int32
+		Thread uint64
+	}
+
 	type Fail struct {
 		Error struct {
 			Code    int32
@@ -303,6 +360,14 @@ func (unit *Unit) HandleAnswer() (string, error) {
 	json.Unmarshal(unit.LastAnswer.Body, answer.(*Ok))
 
 	if answer.(*Ok).Num != 0 {
+		msg = "OK: " + msg
+		return msg, nil
+	}
+
+	answer = &OkThread{}
+	json.Unmarshal(unit.LastAnswer.Body, answer.(*OkThread))
+
+	if answer.(*OkThread).Thread != 0 {
 		msg = "OK: " + msg
 		return msg, nil
 	}

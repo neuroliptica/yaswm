@@ -18,12 +18,6 @@ func (unit *Unit) Run() {
 					unit.Log("получаю и решаю капчу...")
 					return unit.SolveCaptcha()
 				},
-				func() error {
-					if unit.Env.WipeMode != RandomThreads {
-						return nil
-					}
-					return unit.GetRandomThread()
-				},
 				unit.SendPost,
 				func() error {
 					msg, err := unit.HandleAnswer()
