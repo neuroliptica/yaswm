@@ -4,9 +4,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 var logger *Logger
+
+var MainWg = &sync.WaitGroup{}
 
 func init() {
 	log.SetFlags(log.Ltime)
@@ -47,15 +50,22 @@ func main() {
 		return
 	}
 
-	test := Unit{
-		Env:     &env,
-		Proxy:   env.Proxies[0],
-		State:   Avaiable,
-		Headers: make(map[string]string),
-	}
-	if test.Proxy.Http() && test.Proxy.Private() {
-		test.Headers["Proxy-Authorization"] = test.Proxy.AuthHeader()
+	for i := range env.Proxies {
+		unit := Unit{
+			Env:     &env,
+			Wg:      MainWg,
+			Proxy:   env.Proxies[i],
+			Headers: make(map[string]string),
+			State:   NoCookies,
+		}
+
+		if unit.Proxy.Http() && unit.Proxy.Private() {
+			unit.Headers["Proxy-Authorization"] = unit.Proxy.AuthHeader()
+		}
+
+		MainWg.Add(1)
+		go unit.Run()
 	}
 
-	test.Run()
+	MainWg.Wait()
 }

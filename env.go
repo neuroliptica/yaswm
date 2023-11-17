@@ -32,6 +32,7 @@ type Options struct {
 		Key         string `short:"k" long:"key" description:"ключ для API антикапчи"`
 		ImageServer string `short:"s" long:"image-server" description:"сервер для получения картинок"`
 		Timeout     uint   `short:"T" long:"timeout" description:"перерыв между постами для одной прокси в секундах\n" default:"0"`
+		Iters       int    `short:"i" long:"iters" description:"кол-во проходов для одной прокси (-1 - бесконечно)" default:"-1"`
 		NoProxy     bool   `short:"l" long:"localhost" description:"не использовать прокси"`
 	} `group:"Wipe options"`
 

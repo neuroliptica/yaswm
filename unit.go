@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -77,6 +78,7 @@ type Unit struct {
 
 	Env   *Env
 	State uint8
+	Wg    *sync.WaitGroup
 
 	LastAnswer     Answer
 	FailedRequests uint
