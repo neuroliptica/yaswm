@@ -36,6 +36,8 @@ func (unit *Unit) Run() {
 		unit.Log("сессия невалидна, получаю печенюшки...")
 
 		unit.Proxy.UserAgent = unit.Env.RandomUserAgent()
+		unit.Headers["User-Agent"] = unit.Proxy.UserAgent
+
 		cookies, err := unit.Proxy.GetCookies()
 
 		<-unit.Env.Limiter

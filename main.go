@@ -48,12 +48,10 @@ func main() {
 	}
 
 	test := Unit{
-		Env:   &env,
-		Proxy: env.Proxies[0],
-		State: Avaiable,
-		Headers: map[string]string{
-			"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0",
-		},
+		Env:     &env,
+		Proxy:   env.Proxies[0],
+		State:   Avaiable,
+		Headers: make(map[string]string),
 	}
 	if test.Proxy.Http() && test.Proxy.Private() {
 		test.Headers["Proxy-Authorization"] = test.Proxy.AuthHeader()
