@@ -42,6 +42,7 @@ type Options struct {
 		Email  string `short:"e" long:"email" description:"задать значение поля email"`
 		Pic    bool   `short:"p" long:"pic" description:"крепить картинку к посту"`
 		Noise  bool   `short:"n" long:"noise" description:"добавить шумов на картинку"`
+		Crop   bool   `short:"C" long:"crop" description:"обрезать картинки"`
 	} `group:"Post options"`
 
 	InternalOptions struct {

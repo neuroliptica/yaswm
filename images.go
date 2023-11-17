@@ -12,6 +12,22 @@ import (
 	"math/rand"
 )
 
+func Crop(file *Media) ([]byte, error) {
+	img, err := NewNRGBA(file)
+	if err != nil {
+		return nil, err
+	}
+	return img.Crop().GetBytes()
+}
+
+func DrawNoise(file *Media) ([]byte, error) {
+	img, err := NewNRGBA(file)
+	if err != nil {
+		return nil, err
+	}
+	return img.DrawNoise().GetBytes()
+}
+
 type ImageNRGBA struct {
 	Image   *image.NRGBA
 	Decoder func(io.Reader) (image.Image, error)
@@ -104,5 +120,20 @@ func (img *ImageNRGBA) DrawNoise() *ImageNRGBA {
 			img.Image.Set(rw+1, rh+1, RandomColor())
 		}
 	}
+	return img
+}
+
+func (img *ImageNRGBA) Crop() *ImageNRGBA {
+	x1 := rand.Intn(img.width / 4)
+	y1 := rand.Intn(img.height / 4)
+	x2 := (img.width/4)*3 + rand.Intn(img.width/4)
+	y2 := (img.height/4)*3 + rand.Intn(img.height/4)
+	img.Image = img.Image.SubImage(image.Rect(
+		x1,
+		y1,
+		x2,
+		y2,
+	)).(*image.NRGBA)
+
 	return img
 }

@@ -287,17 +287,21 @@ func (unit *Unit) SendPost() error {
 		content := file.Content
 
 		for options.PostOptions.Noise {
-			img, err := NewNRGBA(&file)
+			cont, err := DrawNoise(&file)
 			if err != nil {
-				unit.Logf("не удалось создать NRGBA: %v", err)
+				unit.Logf("noise: ошибка: %v", err)
 				break
 			}
-			b, err := img.DrawNoise().GetBytes()
+			content = cont
+			break
+		}
+		for options.PostOptions.Crop {
+			cont, err := Crop(&Meida{Ext: file.Ext, Content: content})
 			if err != nil {
-				unit.Logf("NRGBA: не удалось получить результат: %v", err)
+				unit.Logf("crop: ошибка: %v", err)
 				break
 			}
-			content = b
+			content = cont
 			break
 		}
 
