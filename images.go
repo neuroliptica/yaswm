@@ -20,6 +20,14 @@ func Crop(file *Media) ([]byte, error) {
 	return img.Crop().GetBytes()
 }
 
+func AddMask(file *Media) ([]byte, error) {
+	img, err := NewNRGBA(file)
+	if err != nil {
+		return nil, err
+	}
+	return img.AddMask().GetBytes()
+}
+
 func DrawNoise(file *Media) ([]byte, error) {
 	img, err := NewNRGBA(file)
 	if err != nil {
@@ -82,7 +90,7 @@ func (img *ImageNRGBA) GetBytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func RandomColor() color.RGBA {
+func RandomColor(alpha uint8) color.RGBA {
 	red := rand.Intn(255)
 	green := rand.Intn(255)
 	blue := rand.Intn(255)
@@ -101,8 +109,24 @@ func RandomColor() color.RGBA {
 		R: uint8(red),
 		G: uint8(green),
 		B: uint8(blue),
-		A: uint8(255),
+		A: alpha,
 	}
+}
+
+func (img *ImageNRGBA) AddMask() *ImageNRGBA {
+	col := RandomColor(96)
+	nm := image.NewNRGBA(image.Rect(0, 0, img.width, img.height))
+
+	for i := 0; i < img.width; i++ {
+		for j := 0; j < img.height; j++ {
+			nm.Set(i, j, col)
+		}
+	}
+	b := nm.Bounds()
+
+	draw.Draw(img.Image, img.Image.Bounds(), nm, b.Min, draw.Over)
+
+	return img
 }
 
 func (img *ImageNRGBA) DrawNoise() *ImageNRGBA {
@@ -114,10 +138,10 @@ func (img *ImageNRGBA) DrawNoise() *ImageNRGBA {
 		rw := rand.Intn(img.width)
 		rh := rand.Intn(img.height)
 
-		img.Image.Set(rw, rh, RandomColor())
+		img.Image.Set(rw, rh, RandomColor(255))
 		size := rand.Intn(maxSize)
 		if size%3 == 0 {
-			img.Image.Set(rw+1, rh+1, RandomColor())
+			img.Image.Set(rw+1, rh+1, RandomColor(255))
 		}
 	}
 	return img

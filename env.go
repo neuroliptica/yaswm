@@ -43,6 +43,7 @@ type Options struct {
 		Pic    bool   `short:"p" long:"pic" description:"крепить картинку к посту"`
 		Noise  bool   `short:"n" long:"noise" description:"добавить шумов на картинку"`
 		Crop   bool   `short:"C" long:"crop" description:"обрезать картинки"`
+		Mask   bool   `short:"M" long:"mask" description:"добавлять цветовые маски"`
 	} `group:"Post options"`
 
 	InternalOptions struct {
