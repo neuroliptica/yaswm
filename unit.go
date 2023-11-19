@@ -190,7 +190,7 @@ func (unit *Unit) SolveCaptcha() error {
 
 	if err != nil {
 		return UnitError{
-			Code:    NetworkError,
+			Code:    ParsingError,
 			Message: err.Error(),
 		}
 	}
