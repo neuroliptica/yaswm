@@ -263,6 +263,21 @@ func (unit *Unit) SendPost() error {
 		}
 		params["thread"] = thread
 	}
+	for true {
+		posts, err := GetPosts(params["board"], params["thread"])
+		if err != nil {
+			unit.Logf(
+				"[%s/%s]: не удалось получить посты из треда: %s",
+				params["board"],
+				params["thread"],
+				err.Error(),
+			)
+			break
+		}
+
+		params["comment"] = NewChain(posts).BuildText(256)
+		break
+	}
 
 	ReqInternal := RequestInternal{
 		Url:       url,
@@ -277,6 +292,7 @@ func (unit *Unit) SendPost() error {
 		},
 		Params: params,
 	}
+
 	for options.PostOptions.Pic {
 		file, err := unit.Env.RandomMedia()
 		if err != nil {
