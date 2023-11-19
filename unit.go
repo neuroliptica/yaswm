@@ -303,7 +303,7 @@ func (unit *Unit) SendPost() error {
 
 		content := file.Content
 
-		for options.PostOptions.Mask {
+		for options.PicsOptions.Mask {
 			cont, err := AddMask(&file)
 			if err != nil {
 				unit.Logf("mask: ошибка: %v", err)
@@ -313,7 +313,7 @@ func (unit *Unit) SendPost() error {
 			break
 		}
 
-		for options.PostOptions.Noise {
+		for options.PicsOptions.Noise {
 			cont, err := DrawNoise(&Media{Ext: file.Ext, Content: content})
 			if err != nil {
 				unit.Logf("noise: ошибка: %v", err)
@@ -323,7 +323,7 @@ func (unit *Unit) SendPost() error {
 			break
 		}
 
-		for options.PostOptions.Crop {
+		for options.PicsOptions.Crop {
 			cont, err := Crop(&Media{Ext: file.Ext, Content: content})
 			if err != nil {
 				unit.Logf("crop: ошибка: %v", err)

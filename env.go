@@ -42,10 +42,13 @@ type Options struct {
 		Thread string `short:"t" long:"thread" default:"0" description:"id треда если режим один тред" value-name:"ID"`
 		Email  string `short:"e" long:"email" description:"задать значение поля email"`
 		Pic    bool   `short:"p" long:"pic" description:"крепить картинку к посту"`
-		Noise  bool   `short:"n" long:"noise" description:"добавить шумов на картинку"`
-		Crop   bool   `short:"C" long:"crop" description:"обрезать картинки"`
-		Mask   bool   `short:"M" long:"mask" description:"добавлять цветовые маски"`
 	} `group:"Post options"`
+
+	PicsOptions struct {
+		Noise bool `short:"n" long:"noise" description:"добавить шумов на картинку"`
+		Crop  bool `short:"C" long:"crop" description:"обрезать картинки"`
+		Mask  bool `short:"M" long:"mask" description:"добавлять цветовые маски"`
+	} `group:"Pics options"`
 
 	InternalOptions struct {
 		InitLimit           int  `short:"I" long:"init-limit" description:"максимальное кол-во параллельно получаемых сессий (-1 - по числу проксей)" default:"1"`
