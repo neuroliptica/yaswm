@@ -32,10 +32,10 @@ func (unit *Unit) Run() {
 			if err == nil {
 				unit.FailedRequests = 0
 				i++
-				time.Sleep(time.Second * time.Duration(options.WipeOptions.Timeout))
-				break
+			} else {
+				unit.HandleError(err.(UnitError))
 			}
-			unit.HandleError(err.(UnitError))
+			time.Sleep(time.Second * time.Duration(options.WipeOptions.Timeout))
 
 		case NoCookies:
 			unit.Env.Limiter <- void{}
