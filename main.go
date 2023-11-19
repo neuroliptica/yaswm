@@ -27,7 +27,7 @@ func main() {
 	var env Env
 	err := Maybe{
 		func() error {
-			return env.ParseMedia("./res")
+			return env.ParseMedia("./res/images")
 		},
 		func() error {
 			return env.ParseTexts("./res/texts.txt")

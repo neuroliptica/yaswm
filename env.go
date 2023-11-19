@@ -51,10 +51,11 @@ type Options struct {
 	} `group:"Pics options"`
 
 	InternalOptions struct {
-		InitLimit           int  `short:"I" long:"init-limit" description:"максимальное кол-во параллельно получаемых сессий (-1 - по числу проксей)" default:"1"`
-		RequestsFailedLimit uint `short:"F" long:"max-r-fail" default:"1" description:"максимальное число неудачных запросов для одной прокси до удаления, без учета получения сессии"`
-		SessionFailedLimit  uint `short:"S" long:"max-s-fail" default:"1" description:"максимальное число попыток получить сессию (обойти клауду) для одной прокси до удаления"`
-		FilterBanned        bool `short:"f" long:"filter" description:"удалять прокси после бана"`
+		InitLimit           int    `short:"I" long:"init-limit" description:"максимальное кол-во параллельно получаемых сессий (-1 - по числу проксей)" default:"1"`
+		Rod                 string `long:"rod" description:"go-rod internal flag"`
+		RequestsFailedLimit uint   `short:"F" long:"max-r-fail" default:"1" description:"максимальное число неудачных запросов для одной прокси до удаления, без учета получения сессии"`
+		SessionFailedLimit  uint   `short:"S" long:"max-s-fail" default:"1" description:"максимальное число попыток получить сессию (обойти клауду) для одной прокси до удаления"`
+		FilterBanned        bool   `short:"f" long:"filter" description:"удалять прокси после бана"`
 
 		Verbose bool `short:"v" long:"verbose" description:"дополнительные логи"`
 	} `group:"Internal options"`
