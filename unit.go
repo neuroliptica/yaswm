@@ -254,6 +254,7 @@ func (unit *Unit) SendPost() error {
 		"thread":           unit.Env.Thread,
 		"2chcaptcha_id":    unit.CaptchaId,
 		"2chcaptcha_value": unit.CaptchaValue,
+		"email":            options.PostOptions.Email,
 	}
 
 	if options.WipeOptions.WipeMode == RandomThreads {
