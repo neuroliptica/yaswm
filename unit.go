@@ -263,7 +263,8 @@ func (unit *Unit) SendPost() error {
 		}
 		params["thread"] = thread
 	}
-	for true {
+
+	for options.WipeOptions.Schizo && options.WipeOptions.WipeMode != Creating {
 		posts, err := GetPosts(params["board"], params["thread"])
 		if err != nil {
 			unit.Logf(
