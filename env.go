@@ -28,14 +28,18 @@ const (
 type Options struct {
 	WipeOptions struct {
 		WipeMode    uint8  `short:"m" long:"mode" description:"режим вайпа\n0 - один тред\n1 - вся доска\n2 - создавать треды\n" default:"1" default-mask:"вся доска" choice:"0" choice:"1" choice:"2"`
-		AntiCaptcha uint8  `short:"c" long:"captcha" description:"решалка капчи\n0 - нейронка\n1 - RuCaptcha\n2 - вручную\n" default:"0" default-mask:"нейронка" choice:"0" choice:"1" choice:"2"`
-		Key         string `short:"k" long:"key" description:"ключ для API антикапчи"`
 		ImageServer string `short:"s" long:"image-server" description:"сервер для получения картинок"`
 		Timeout     uint   `short:"T" long:"timeout" description:"перерыв между постами для одной прокси в секундах\n" default:"0"`
 		Iters       int    `short:"i" long:"iters" description:"кол-во проходов для одной прокси (-1 - бесконечно)" default:"-1"`
 		NoProxy     bool   `short:"l" long:"localhost" description:"не использовать прокси"`
 		Schizo      bool   `long:"schizo" description:"генерировать шизотекст на основе постов из треда"`
 	} `group:"Wipe options"`
+
+	CaptchaOptions struct {
+		AntiCaptcha uint8  `short:"c" long:"captcha" description:"решалка капчи\n0 - нейронка\n1 - RuCaptcha\n2 - вручную\n" default:"0" default-mask:"нейронка" choice:"0" choice:"1" choice:"2"`
+		Key         string `short:"k" long:"key" description:"ключ для API антикапчи"`
+		OcrServer   string `short:"o" long:"ocr-server" description:"API url нейронки" default:"http://127.0.0.1:7860/api/predict"`
+	} `group:"Captcha options"`
 
 	PostOptions struct {
 		Board  string `short:"b" long:"board" default:"b" description:"доска"`
@@ -243,14 +247,14 @@ func (env *Env) ParseThread() error {
 }
 
 func (env *Env) ParseSolver() error {
-	switch options.WipeOptions.AntiCaptcha {
+	switch options.CaptchaOptions.AntiCaptcha {
 
 	case OCR:
-		return errors.New("ocr solver not implemented yet")
+		env.Solver = NeuralSolver
 
 	case RuCaptcha:
 		env.Solver = RuCaptchaSolver
-		if options.WipeOptions.Key == "" {
+		if options.CaptchaOptions.Key == "" {
 			return errors.New("ключь API антикапчи не указан!")
 		}
 

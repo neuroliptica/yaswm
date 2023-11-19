@@ -186,7 +186,7 @@ func (unit *Unit) SolveCaptcha() error {
 	unit.LastAnswer = Answer{
 		Stage: CaptchaSolving,
 	}
-	value, err := unit.Env.Solver(img, options.WipeOptions.Key)
+	value, err := unit.Env.Solver(img, options.CaptchaOptions.Key)
 
 	if err != nil {
 		return UnitError{
