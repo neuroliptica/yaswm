@@ -64,7 +64,5 @@ $ ./wipe --pic --image-server=http://localhost:13785/get
 - image/png
 - image/jpeg
 
-## 
-
 ## Ошибки
 Сюда в issues или мне в [телеграмм](https://t.me/seharehare).
