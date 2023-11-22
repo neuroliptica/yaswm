@@ -72,6 +72,7 @@ func RemoveTags(text string) string {
 		" (OP)", "",
 		"<br>", "\n",
 		"&gt;", ">",
+		"&#47;", "/",
 	)
 
 	text = replacer.Replace(text)
