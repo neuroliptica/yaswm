@@ -63,18 +63,19 @@ func (chain *Chain) BuildText(maxlen int) string {
 		result = append(result, cur)
 	}
 
-	res := strings.Join(result, " ")
+	return strings.Join(result, " ")
+}
 
+func RemoveTags(text string) string {
 	replacer := strings.NewReplacer(
 		"&quot;", "\"",
 		" (OP)", "",
 		"<br>", "\n",
 		"&gt;", ">",
 	)
-	return replacer.Replace(res)
-}
 
-func RemoveTags(text string) string {
+	text = replacer.Replace(text)
+
 	runes := []rune(text)
 	tag := false
 
