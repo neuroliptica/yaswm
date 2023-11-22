@@ -63,7 +63,15 @@ func (chain *Chain) BuildText(maxlen int) string {
 		result = append(result, cur)
 	}
 
-	return strings.Join(result, " ")
+	res := strings.Join(result, " ")
+
+	replacer := strings.NewReplacer(
+		"&quot;", "\"",
+		" (OP)", "",
+		"<br>", "\n",
+		"&gt;", ">",
+	)
+	return replacer.Replace(res)
 }
 
 func RemoveTags(text string) string {
