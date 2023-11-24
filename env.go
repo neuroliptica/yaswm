@@ -39,6 +39,7 @@ type Options struct {
 		AntiCaptcha uint8  `short:"c" long:"captcha" description:"решалка капчи\n0 - нейронка\n1 - RuCaptcha\n2 - вручную\n" default:"0" default-mask:"нейронка" choice:"0" choice:"1" choice:"2"`
 		Key         string `short:"k" long:"key" description:"ключ для API антикапчи"`
 		OcrServer   string `short:"o" long:"ocr-server" description:"API url нейронки" default:"http://127.0.0.1:7860/api/predict"`
+		Solve       bool   `long:"solve" description:"считать результат решения капчи"`
 	} `group:"Captcha options"`
 
 	PostOptions struct {
@@ -56,12 +57,10 @@ type Options struct {
 
 	InternalOptions struct {
 		InitLimit           int    `short:"I" long:"init-limit" description:"максимальное кол-во параллельно получаемых сессий (-1 - по числу проксей)" default:"1"`
-		Rod                 string `long:"rod" description:"go-rod internal flag"`
 		RequestsFailedLimit uint   `short:"F" long:"max-r-fail" default:"1" description:"максимальное число неудачных запросов для одной прокси до удаления, без учета получения сессии"`
 		SessionFailedLimit  uint   `short:"S" long:"max-s-fail" default:"1" description:"максимальное число попыток получить сессию (обойти клауду) для одной прокси до удаления"`
 		FilterBanned        bool   `short:"f" long:"filter" description:"удалять прокси после бана"`
-
-		Verbose bool `short:"v" long:"verbose" description:"дополнительные логи"`
+		Rod                 string `long:"rod" description:"go-rod internal flag"`
 	} `group:"Internal options"`
 }
 

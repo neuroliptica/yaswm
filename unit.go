@@ -195,6 +195,18 @@ func (unit *Unit) SolveCaptcha() error {
 		}
 	}
 	unit.CaptchaValue = value
+
+	if options.CaptchaOptions.Solve {
+		solved, err := Solve(value)
+		if err != nil {
+			return UnitError{
+				Code:    ParsingError,
+				Message: fmt.Sprintf("не удалось средуцировать капчу: %v", err),
+			}
+		}
+		unit.CaptchaValue = solved
+	}
+
 	unit.Logf("капча: %s", unit.CaptchaValue)
 
 	return nil
@@ -269,7 +281,7 @@ func (unit *Unit) SendPost() error {
 		posts, err := GetPosts(params["board"], params["thread"])
 		if err != nil {
 			unit.Logf(
-				"[%s/%s]: не удалось получить посты из треда: %s",
+				"%s/%s: не удалось получить посты из треда: %s",
 				params["board"],
 				params["thread"],
 				err.Error(),
@@ -506,5 +518,4 @@ func (unit *Unit) HandleParsingError(err UnitError) {
 		unit.LastAnswer.Body,
 	)
 	unit.Log(msg)
-	// TODO
 }
