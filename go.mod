@@ -1,6 +1,6 @@
 module wipe
 
-go 1.21.3
+go 1.19
 
 require (
 	github.com/go-rod/rod v0.114.5 // indirect
