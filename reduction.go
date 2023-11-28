@@ -6,7 +6,7 @@ import (
 	"unicode"
 )
 
-const ques = 0xff
+const ques = 0xDEADBEEF
 
 var ops = map[rune]bool{
 	'+': true,
@@ -87,7 +87,7 @@ func MaybeNumber(word string) (string, string, error) {
 }
 
 type Exp struct {
-	L0, L1, R int
+	L0, L1, R float64
 	Op        rune
 	Word      string
 }
@@ -114,12 +114,12 @@ func (exp *Exp) Parse() error {
 		return err
 	}
 
-	maybe := func(part string) int {
+	maybe := func(part string) float64 {
 		i, err := strconv.Atoi(part)
 		if err != nil {
 			return ques
 		}
-		return i
+		return float64(i)
 	}
 
 	exp.L0 = maybe(result[0])
@@ -130,7 +130,7 @@ func (exp *Exp) Parse() error {
 	return nil
 }
 
-func (exp *Exp) Eval() int {
+func (exp *Exp) Eval() float64 {
 	switch exp.Op {
 
 	case '+':
@@ -186,5 +186,5 @@ func Solve(word string) (string, error) {
 		return word, err
 	}
 
-	return strconv.Itoa(exp.Eval()), nil
+	return strconv.Itoa(int(exp.Eval())), nil
 }
