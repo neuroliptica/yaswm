@@ -3,3 +3,5 @@ release/
 README_old.md
 gen/
 captcha.png
+array*
+*_test.go
