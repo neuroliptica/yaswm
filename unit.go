@@ -183,6 +183,7 @@ func (unit *Unit) SolveCaptcha() error {
 			Message: "invalid response code",
 		}
 	}
+
 	unit.LastAnswer = Answer{
 		Stage: CaptchaSolving,
 	}
@@ -277,7 +278,7 @@ func (unit *Unit) SendPost() error {
 		params["thread"] = thread
 	}
 
-	for options.WipeOptions.Schizo && options.WipeOptions.WipeMode != Creating {
+	if options.WipeOptions.Schizo && options.WipeOptions.WipeMode != Creating {
 		posts, err := GetPosts(params["board"], params["thread"])
 		if err != nil {
 			unit.Logf(
@@ -286,11 +287,9 @@ func (unit *Unit) SendPost() error {
 				params["thread"],
 				err.Error(),
 			)
-			break
+		} else {
+			params["comment"] = NewChain(posts).BuildText(256)
 		}
-
-		params["comment"] = NewChain(posts).BuildText(256)
-		break
 	}
 
 	ReqInternal := RequestInternal{
@@ -314,36 +313,25 @@ func (unit *Unit) SendPost() error {
 			break
 		}
 
-		content := file.Content
-
-		for options.PicsOptions.Mask {
-			cont, err := AddMask(&file)
+		if options.PicsOptions.Crop {
+			err = file.Crop()
 			if err != nil {
-				unit.Logf("mask: ошибка: %v", err)
-				break
+				unit.Logf("Crop(): ошибка: %v", err)
 			}
-			content = cont
-			break
 		}
 
-		for options.PicsOptions.Noise {
-			cont, err := DrawNoise(&Media{Ext: file.Ext, Content: content})
+		if options.PicsOptions.Mask {
+			err = file.AddMask()
 			if err != nil {
-				unit.Logf("noise: ошибка: %v", err)
-				break
+				unit.Logf("AddMask(): ошибка: %v", err)
 			}
-			content = cont
-			break
 		}
 
-		for options.PicsOptions.Crop {
-			cont, err := Crop(&Media{Ext: file.Ext, Content: content})
+		if options.PicsOptions.Noise {
+			err = file.DrawNoise()
 			if err != nil {
-				unit.Logf("crop: ошибка: %v", err)
-				break
+				unit.Logf("DrawNoise(): ошибка: %v", err)
 			}
-			content = cont
-			break
 		}
 
 		name := fmt.Sprintf(
@@ -354,11 +342,12 @@ func (unit *Unit) SendPost() error {
 		req.Form = FilesForm{
 			Name: "file[]",
 			Files: map[string][]byte{
-				name: content,
+				name: file.Content,
 			},
 		}
 		break
 	}
+
 	unit.LastAnswer = Answer{
 		Stage: SendingPost,
 	}

@@ -12,28 +12,49 @@ import (
 	"math/rand"
 )
 
-func Crop(file *Media) ([]byte, error) {
+func (file *Media) Crop() error {
 	img, err := NewNRGBA(file)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return img.Crop().GetBytes()
+
+	cont, err := img.Crop().GetBytes()
+	if err != nil {
+		return err
+	}
+
+	file.Content = cont
+	return nil
 }
 
-func AddMask(file *Media) ([]byte, error) {
+func (file *Media) AddMask() error {
 	img, err := NewNRGBA(file)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return img.AddMask().GetBytes()
+
+	cont, err := img.AddMask().GetBytes()
+	if err != nil {
+		return err
+	}
+
+	file.Content = cont
+	return nil
 }
 
-func DrawNoise(file *Media) ([]byte, error) {
+func (file *Media) DrawNoise() error {
 	img, err := NewNRGBA(file)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return img.DrawNoise().GetBytes()
+
+	cont, err := img.DrawNoise().GetBytes()
+	if err != nil {
+		return err
+	}
+
+	file.Content = cont
+	return nil
 }
 
 type ImageNRGBA struct {

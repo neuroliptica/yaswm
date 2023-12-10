@@ -283,6 +283,7 @@ func (env *Env) RandomMedia() (Media, error) {
 		}
 		return env.Media[rand.Intn(len(env.Media))], nil
 	}
+
 	req := GetRequest{
 		RequestInternal: RequestInternal{
 			Url: options.WipeOptions.ImageServer,
@@ -302,7 +303,7 @@ func (env *Env) RandomMedia() (Media, error) {
 	ctype := req.RequestInternal.Response.Header.Get("Content-Type")
 	logger.Log(req.RequestInternal.Response.Header)
 
-	if ctype == "" || types[ctype] == "" {
+	if types[ctype] == "" {
 		return Media{}, errors.New("invalid Content-Type header")
 	}
 	if req.RequestInternal.Response.StatusCode != 200 {
