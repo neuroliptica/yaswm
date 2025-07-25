@@ -27,15 +27,11 @@ $ cd yaswm && go build
 $ ./wipe --help
 ```
 
-## Доступные солверы
-- [RuCaptcha](https://rucaptcha.com)
-- OCR (нужен инстанс распознавалки)
-
-## OCR сервер
-Вайпалка может использовать инстанс распознавалки для решения капчи, как локальный так и удалённый. Для этого нужно задать флаг `--ocr-server=`. Пример:
+## 2ch Emoji Captcha Api 
+Для использования нужен собственный инстанс распознавалки капчи. Общедоступных публичных солверов пока нет.
 
 ```
-$ ./wipe -c 0 --ocr-server=http://127.0.0.1:8080/api/predict 
+$ ./wipe --emoji-server=http://127.0.0.1:8000/predict 
 ```
 
 Схема тела запроса и ответа, которой должен удовлетворять солвер:
@@ -43,16 +39,19 @@ $ ./wipe -c 0 --ocr-server=http://127.0.0.1:8080/api/predict
 Request:
 ```json
 {
-    "data": ["base64 captcha image"]
+    "image": "base64 captcha image"
+    "keyboard": ["base64 keyboard symbols"]
 }
 ```
 
 Response:
 ```json
 {
-    "data": ["result value"]
+    "index": 0
 }
 ```
+
+В рамках одного запроса солвер должен возвращать один индекс символа из keyboard.
 
 ## Ошибки
 Сюда в issues или мне в [телеграмм](https://t.me/seharehare).
