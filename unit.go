@@ -14,9 +14,8 @@ import (
 )
 
 const (
-	CaptchaApi  = "/api/captcha/emoji/"
-	PostingApi  = "/user/posting"
-	LocalSolver = "http://127.0.0.1:8000/recognize"
+	CaptchaApi = "/api/captcha/emoji/"
+	PostingApi = "/user/posting"
 )
 
 // States
@@ -100,13 +99,13 @@ type Unit struct {
 	FailedSessions uint
 }
 
-func (unit *Unit) Log(msg ...any) {
-	log.Info().Msgf("[%s] %s", unit.Proxy.String(), fmt.Sprint(msg...))
-}
-
-func (unit *Unit) Logf(format string, msg ...any) {
-	log.Info().Msgf(fmt.Sprintf("[%s] ", unit.Proxy.String())+format, msg...)
-}
+//func (unit *Unit) Log(msg ...any) {
+//	log.Info().Msgf("[%s] %s", unit.Proxy.String(), fmt.Sprint(msg...))
+//}
+//
+//func (unit *Unit) Logf(format string, msg ...any) {
+//	log.Info().Msgf(fmt.Sprintf("[%s] ", unit.Proxy.String())+format, msg...)
+//}
 
 // Perform() method wrapper to save debug content between requests.
 func (unit *Unit) Perform(req UnitRequest) ([]byte, error) {
@@ -233,7 +232,7 @@ func (unit *Unit) SolveEmoji(url string, data Challenge) (*SolverResp, error) {
 }
 
 func (unit *Unit) ClickCaptcha() error {
-	sresp, err := unit.SolveEmoji(LocalSolver, unit.Captcha)
+	sresp, err := unit.SolveEmoji(options.CaptchaOptions.EmojiServer, unit.Captcha)
 	if err != nil {
 		return err
 	}

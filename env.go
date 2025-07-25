@@ -37,10 +37,11 @@ type Options struct {
 	} `group:"Wipe options"`
 
 	CaptchaOptions struct {
+		EmojiServer string `long:"emoji-server" description:"API url вашей решалки emoji капчи" default:"http://127.0.0.1:8000/recognize"`
 		AntiCaptcha uint8  `short:"c" long:"captcha" description:"решалка капчи\n0 - нейронка\n1 - RuCaptcha\n2 - вручную\n" default:"0" default-mask:"нейронка" choice:"0" choice:"1" choice:"2"`
 		Key         string `short:"k" long:"key" description:"ключ для API антикапчи"`
-		OcrServer   string `short:"o" long:"ocr-server" description:"API url нейронки" default:"http://127.0.0.1:7860/api/predict"`
-		Solve       bool   `long:"solve" description:"считать результат решения капчи"`
+		OcrServer   string `short:"o" long:"ocr-server" description:"(legacy) API url нейронки" default:"http://127.0.0.1:7860/api/predict"`
+		Solve       bool   `long:"solve" description:"(legacy) считать результат решения капчи"`
 	} `group:"Captcha options"`
 
 	PostOptions struct {
@@ -84,7 +85,7 @@ type Env struct {
 	WipeMode uint8
 	Thread   string // 0 if creating
 
-	Proxies    []Proxy // TODO: proxies type
+	Proxies    []Proxy
 	UserAgents []string
 	Texts      []string
 	Media      []Media

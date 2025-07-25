@@ -217,7 +217,7 @@ func (p *Proxy) GetCookies() (cookies []*http.Cookie, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			//logger("[rod-debug] panic!: %v", r)
-			err = fmt.Errorf("возникла внутренняя ошибкаЖ %v", r)
+			err = fmt.Errorf("возникла внутренняя ошибка: %v", r)
 		}
 	}()
 
