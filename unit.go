@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -87,6 +90,7 @@ type Unit struct {
 	Headers map[string]string
 
 	CaptchaId, CaptchaValue string
+	DvachChallenge          string
 	Captcha                 Challenge
 	CaptchaClickStage       int
 
@@ -152,8 +156,12 @@ func (unit *Unit) GetCaptchaId() error {
 	}
 
 	var response struct {
-		Id     string
-		Result int
+		Id        string
+		Result    int
+		Challenge struct {
+			Hash, Template string
+			Limit          int
+		}
 	}
 	if err := json.Unmarshal(cont, &response); err != nil {
 		return UnitError{ParsingError, err.Error()}
@@ -162,12 +170,28 @@ func (unit *Unit) GetCaptchaId() error {
 		return UnitError{ParsingError, "unexpected answer"}
 	}
 
+	for i := 0; i <= response.Challenge.Limit; i++ {
+		text := strings.Replace(
+			response.Challenge.Template,
+			"%d",
+			fmt.Sprintf("%d", i),
+			1,
+		)
+		hashBytes := sha512.Sum512([]byte(text))
+		hashHex := hex.EncodeToString(hashBytes[:])
+
+		if hashHex == response.Challenge.Hash {
+			unit.DvachChallenge = strconv.Itoa(i)
+			break
+		}
+	}
+
 	unit.CaptchaId = response.Id
 	return nil
 }
 
 func (unit *Unit) GetCaptchaImage() error {
-	unit.Captcha.Image = ""
+	unit.Captcha = Challenge{}
 	url := fmt.Sprintf(
 		"https://2ch.hk%sshow?id=%s",
 		CaptchaApi,
@@ -212,9 +236,10 @@ func (unit *Unit) SolveEmoji(url string, data Challenge) (*SolverResp, error) {
 		return nil, UnitError{ParsingError, err.Error()}
 	}
 	req := Request{
-		Url:       url,
-		Headers:   unit.Headers,
-		Cookies:   unit.Cookies,
+		Url: url,
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+		},
 		Timeout:   time.Second * 30,
 		Transport: unit.Proxy.Transport(),
 		Payload:   bytes.NewBuffer(p),
@@ -227,6 +252,7 @@ func (unit *Unit) SolveEmoji(url string, data Challenge) (*SolverResp, error) {
 	if err := json.Unmarshal(cont, &r); err != nil {
 		return nil, UnitError{ParsingError, err.Error()}
 	}
+	log.Info().Msg(string(cont))
 
 	return &r, nil
 }
@@ -404,6 +430,7 @@ func (unit *Unit) SendPost() error {
 	params := map[string]string{
 		"task":             "post",
 		"captcha_type":     "emoji_captcha",
+		"2ch_challenge":    unit.DvachChallenge,
 		"comment":          unit.Env.Texts[rand.Intn(len(unit.Env.Texts))],
 		"board":            options.PostOptions.Board,
 		"thread":           unit.Env.Thread,

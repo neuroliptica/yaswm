@@ -61,6 +61,7 @@ func (r *Request) Do(req *http.Request) (*http.Response, error) {
 		client.Transport = r.Transport
 	}
 	client.Transport.(*http.Transport).ProxyConnectHeader = req.Header
+
 	return client.Do(req)
 }
 
@@ -139,6 +140,7 @@ func (r *PostMultipartRequest) Perform() ([]byte, error) {
 	}
 	r.Request.Headers["Content-Type"] = writer.FormDataContentType()
 	r.Request.Set(req)
+
 	r.Request.Response, err = r.Request.Do(req)
 	if err != nil {
 		return nil, err

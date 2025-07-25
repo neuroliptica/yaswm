@@ -292,7 +292,7 @@ func (p *Proxy) GetCookies() (cookies []*http.Cookie, err error) {
 	page.MustWaitNavigation()
 	time.Sleep(time.Second * 20)
 
-	captchaUrl := "https://2ch.hk/api/captcha/2chcaptcha/id?board=b&thread=0"
+	captchaUrl := "https://2ch.hk/api/captcha/emoji/id"
 	err = page.Navigate(captchaUrl)
 	if err != nil {
 		return nil, err
