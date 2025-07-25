@@ -28,15 +28,13 @@ func NeuralSolver(img []byte, key string) (string, error) {
 		return "", err
 	}
 
-	req := PostRequest{
+	req := Request{
 		Payload: bytes.NewBuffer(payload),
-		RequestInternal: RequestInternal{
-			Url:     options.CaptchaOptions.OcrServer,
-			Timeout: time.Second * 30,
-			Headers: map[string]string{
-				"Content-Type": "application/json",
-				"Connection":   "keep-alive",
-			},
+		Url:     options.CaptchaOptions.OcrServer,
+		Timeout: time.Second * 30,
+		Headers: map[string]string{
+			"Content-Type": "application/json",
+			"Connection":   "keep-alive",
 		},
 	}
 	cont, err := req.Perform()

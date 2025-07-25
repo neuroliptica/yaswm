@@ -3,43 +3,52 @@ package main
 import (
 	"bytes"
 	"crypto/tls"
-	"io/ioutil"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"time"
 )
 
-type RequestInternal struct {
-	Url       string
-	Headers   map[string]string
-	Cookies   []*http.Cookie
+type Request struct {
+	Url     string
+	Payload *bytes.Buffer
+
+	Headers map[string]string
+	Cookies []*http.Cookie
+
 	Transport *http.Transport
 	Timeout   time.Duration
 
 	Response *http.Response
 }
 
-type GetRequest struct {
-	RequestInternal
+func (r *Request) GetResponse() *http.Response {
+	return r.Response
 }
 
-type PostRequest struct {
-	RequestInternal
-	Payload *bytes.Buffer
+func (r *Request) GetRequest() *Request {
+	return r
 }
 
-func (internal *RequestInternal) Set(req *http.Request) {
-	for key, value := range internal.Headers {
+type UnitRequest interface {
+	Perform() ([]byte, error)
+
+	GetRequest() *Request
+	GetResponse() *http.Response
+}
+
+func (r *Request) Set(req *http.Request) {
+	for key, value := range r.Headers {
 		req.Header.Set(key, value)
 	}
-	for i := range internal.Cookies {
-		req.AddCookie(internal.Cookies[i])
+	for i := range r.Cookies {
+		req.AddCookie(r.Cookies[i])
 	}
 }
 
-func (internal *RequestInternal) Do(req *http.Request) (*http.Response, error) {
+func (r *Request) Do(req *http.Request) (*http.Response, error) {
 	client := &http.Client{
-		Timeout: internal.Timeout,
+		Timeout: r.Timeout,
 	}
 	defaultTransport := &http.Transport{
 		TLSClientConfig: &tls.Config{
@@ -48,43 +57,32 @@ func (internal *RequestInternal) Do(req *http.Request) (*http.Response, error) {
 		},
 	}
 	client.Transport = defaultTransport
-	if internal.Transport != nil {
-		client.Transport = internal.Transport
+	if r.Transport != nil {
+		client.Transport = r.Transport
 	}
 	client.Transport.(*http.Transport).ProxyConnectHeader = req.Header
 	return client.Do(req)
 }
 
-func (preq *PostRequest) Perform() ([]byte, error) {
-	req, err := http.NewRequest(
-		"POST",
-		preq.Url,
-		preq.Payload,
-	)
-	if err != nil {
-		return nil, err
+func (r *Request) Perform() ([]byte, error) {
+	t := "GET"
+	var p io.Reader
+	if r.Payload != nil {
+		t = "POST"
+		p = r.Payload
 	}
-	preq.RequestInternal.Set(req)
-	preq.Response, err = preq.RequestInternal.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer preq.Response.Body.Close()
-	return ioutil.ReadAll(preq.Response.Body)
-}
 
-func (greq *GetRequest) Perform() ([]byte, error) {
-	req, err := http.NewRequest("GET", greq.Url, nil)
+	req, err := http.NewRequest(t, r.Url, p)
 	if err != nil {
 		return nil, err
 	}
-	greq.RequestInternal.Set(req)
-	greq.Response, err = greq.RequestInternal.Do(req)
+	r.Set(req)
+	r.Response, err = r.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	defer greq.Response.Body.Close()
-	return ioutil.ReadAll(greq.Response.Body)
+	defer r.Response.Body.Close()
+	return io.ReadAll(r.Response.Body)
 }
 
 type FilesForm struct {
@@ -93,24 +91,32 @@ type FilesForm struct {
 }
 
 type PostMultipartRequest struct {
-	Request PostRequest
+	Request Request
 	Form    FilesForm
 	Params  map[string]string
 }
 
-func (preq *PostMultipartRequest) Perform() ([]byte, error) {
-	preq.Request.Payload = new(bytes.Buffer)
-	writer := multipart.NewWriter(preq.Request.Payload)
+func (r *PostMultipartRequest) GetResponse() *http.Response {
+	return r.Request.Response
+}
 
-	for key, value := range preq.Params {
+func (r *PostMultipartRequest) GetRequest() *Request {
+	return &r.Request
+}
+
+func (r *PostMultipartRequest) Perform() ([]byte, error) {
+	r.Request.Payload = new(bytes.Buffer)
+	writer := multipart.NewWriter(r.Request.Payload)
+
+	for key, value := range r.Params {
 		err := writer.WriteField(key, value)
 		if err != nil {
 			writer.Close()
 			return nil, err
 		}
 	}
-	for file, cont := range preq.Form.Files {
-		part, err := writer.CreateFormFile(preq.Form.Name, file)
+	for file, cont := range r.Form.Files {
+		part, err := writer.CreateFormFile(r.Form.Name, file)
 		if err != nil {
 			writer.Close()
 			return nil, err
@@ -121,23 +127,23 @@ func (preq *PostMultipartRequest) Perform() ([]byte, error) {
 
 	req, err := http.NewRequest(
 		"POST",
-		preq.Request.Url,
-		preq.Request.Payload,
+		r.Request.Url,
+		r.Request.Payload,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	if preq.Request.Headers == nil {
-		preq.Request.Headers = make(map[string]string)
+	if r.Request.Headers == nil {
+		r.Request.Headers = make(map[string]string)
 	}
-	preq.Request.Headers["Content-Type"] = writer.FormDataContentType()
-	preq.Request.RequestInternal.Set(req)
-	preq.Request.Response, err = preq.Request.RequestInternal.Do(req)
+	r.Request.Headers["Content-Type"] = writer.FormDataContentType()
+	r.Request.Set(req)
+	r.Request.Response, err = r.Request.Do(req)
 	if err != nil {
 		return nil, err
 	}
 
-	defer preq.Request.Response.Body.Close()
-	return ioutil.ReadAll(preq.Request.Response.Body)
+	defer r.Request.Response.Body.Close()
+	return io.ReadAll(r.Request.Response.Body)
 }

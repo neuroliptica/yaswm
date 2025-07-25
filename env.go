@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"github.com/jessevdk/go-flags"
+	"github.com/rs/zerolog/log"
 )
 
 // Wipe modes
@@ -61,6 +62,7 @@ type Options struct {
 		SessionFailedLimit  uint   `short:"S" long:"max-s-fail" default:"1" description:"максимальное число попыток получить сессию (обойти клауду) для одной прокси до удаления"`
 		FilterBanned        bool   `short:"f" long:"filter" description:"удалять прокси после бана"`
 		Rod                 string `long:"rod" description:"go-rod internal flag"`
+		Verbose             bool   `short:"v" long:"verbose" description:"подробное логгирование запросов"`
 	} `group:"Internal options"`
 }
 
@@ -138,7 +140,7 @@ func (env *Env) ParseProxies(path string) error {
 		proxy := Proxy{}
 		err = proxy.Parse(p)
 		if err != nil {
-			logger.Logf("[%s] parsing failed: %v", p, err)
+			log.Info().Msgf("[%s] parsing failed: %v", p, err)
 			continue
 		}
 		env.Proxies = append(env.Proxies, proxy)
@@ -182,7 +184,7 @@ func (env *Env) ParseMedia(path string) error {
 					return err
 				}
 				if len(ent.Content) >= 2e7 {
-					logger.Logf("%s размер превышает 20mb!", entry[i].Name())
+					log.Info().Msgf("%s размер превышает 20mb!", entry[i].Name())
 					continue
 				}
 				env.Media = append(env.Media, ent)
@@ -284,10 +286,8 @@ func (env *Env) RandomMedia() (Media, error) {
 		return env.Media[rand.Intn(len(env.Media))], nil
 	}
 
-	req := GetRequest{
-		RequestInternal: RequestInternal{
-			Url: options.WipeOptions.ImageServer,
-		},
+	req := Request{
+		Url: options.WipeOptions.ImageServer,
 	}
 
 	resp, err := req.Perform()
@@ -300,13 +300,13 @@ func (env *Env) RandomMedia() (Media, error) {
 		"image/jpeg": ".jpg",
 	}
 
-	ctype := req.RequestInternal.Response.Header.Get("Content-Type")
-	logger.Log(req.RequestInternal.Response.Header)
+	ctype := req.Response.Header.Get("Content-Type")
+	log.Info().Msgf("%v", req.Response.Header)
 
 	if types[ctype] == "" {
 		return Media{}, errors.New("invalid Content-Type header")
 	}
-	if req.RequestInternal.Response.StatusCode != 200 {
+	if req.Response.StatusCode != 200 {
 		return Media{}, errors.New("invalid response code")
 	}
 

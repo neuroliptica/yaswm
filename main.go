@@ -1,23 +1,29 @@
 package main
 
 import (
-	"log"
 	"os"
-	"path/filepath"
 	"sync"
-)
+	"time"
 
-var logger *Logger
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+)
 
 var MainWg = &sync.WaitGroup{}
 
 func init() {
-	log.SetFlags(log.Ltime)
 	if _, err := parser.Parse(); err != nil {
 		os.Exit(0)
 	}
-	logger = MakeLogger(filepath.Base(os.Args[0])).
-		BindChanReader(&defaultReader)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	if options.InternalOptions.Verbose {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(zerolog.ConsoleWriter{
+		Out:        os.Stderr,
+		TimeFormat: time.TimeOnly,
+	})
 }
 
 func main() {
@@ -46,7 +52,7 @@ func main() {
 		Eval()
 
 	if err != nil {
-		logger.Log("фатальная ошибка: ", err.Error())
+		log.Error().Msgf("ошибка конфига: %s", err.Error())
 		return
 	}
 

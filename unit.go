@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -8,11 +9,14 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 const (
-	CaptchaApi = "/api/captcha/2chcaptcha/"
-	PostingApi = "/user/posting"
+	CaptchaApi  = "/api/captcha/emoji/"
+	PostingApi  = "/user/posting"
+	LocalSolver = "http://127.0.0.1:8000/recognize"
 )
 
 // States
@@ -28,18 +32,18 @@ const (
 // Posting stages
 const (
 	CaptchaId = iota
-	CaptchaImage
-	CaptchaSolving
+	CaptchaGet
+	CaptchaClick
 	RandomThread
 	SendingPost
 )
 
 var StageName = map[int]string{
-	CaptchaId:      "CaptchaId",
-	CaptchaImage:   "CaptchaImage",
-	CaptchaSolving: "CaptchaSolving",
-	RandomThread:   "RandomThread",
-	SendingPost:    "SendingPost",
+	CaptchaId:    "CaptchaId",
+	CaptchaGet:   "CaptchaGet",
+	CaptchaClick: "CaptchaClick",
+	RandomThread: "RandomThread",
+	SendingPost:  "SendingPost",
 }
 
 // UnitError codes
@@ -72,12 +76,20 @@ func (e UnitError) Error() string {
 	return fmt.Sprintf("UnitError[code=%d] %s", e.Code, e.Message)
 }
 
+type Challenge struct {
+	// Both in base64 format
+	Image    string   `json:"image"`
+	Keyboard []string `json:"keyboard"`
+}
+
 type Unit struct {
 	Proxy   Proxy
 	Cookies []*http.Cookie
 	Headers map[string]string
 
 	CaptchaId, CaptchaValue string
+	Captcha                 Challenge
+	CaptchaClickStage       int
 
 	Env   *Env
 	State uint8
@@ -89,189 +101,324 @@ type Unit struct {
 }
 
 func (unit *Unit) Log(msg ...any) {
-	logger.Log(fmt.Sprintf("[%s] %s", unit.Proxy.String(), fmt.Sprint(msg...)))
+	log.Info().Msgf("[%s] %s", unit.Proxy.String(), fmt.Sprint(msg...))
 }
 
 func (unit *Unit) Logf(format string, msg ...any) {
-	logger.Logf(fmt.Sprintf("[%s] ", unit.Proxy.String())+format, msg...)
+	log.Info().Msgf(fmt.Sprintf("[%s] ", unit.Proxy.String())+format, msg...)
+}
+
+// Perform() method wrapper to save debug content between requests.
+func (unit *Unit) Perform(req UnitRequest) ([]byte, error) {
+	r := req.GetRequest()
+	// Make this log to verbose loglevel
+	log.Debug().Msgf(
+		"%s -> %v",
+		unit.Proxy.String(),
+		r,
+	)
+	cont, err := req.Perform()
+	unit.LastAnswer.Response = req.GetResponse()
+	if err != nil {
+		return nil, err
+	}
+	unit.LastAnswer.Body = cont
+
+	return cont, err
+}
+
+// Unit Api funciton's wrappers for Maybe{} chain to track external info.
+func (unit *Unit) WithStageInfo(f func() error, stage int) func() error {
+	unit.LastAnswer = Answer{
+		Stage: stage,
+	}
+	return f
 }
 
 func (unit *Unit) GetCaptchaId() error {
-	url := fmt.Sprintf(
-		"https://2ch.hk%sid?board=%s&thread=%s",
-		CaptchaApi,
-		options.PostOptions.Board,
-		unit.Env.Thread,
-	)
-	unit.LastAnswer = Answer{
-		Stage: CaptchaId,
+	url := "https://2ch.hk" + CaptchaApi + "id"
+	req := Request{
+		Url:       url,
+		Headers:   unit.Headers,
+		Cookies:   unit.Cookies,
+		Timeout:   time.Second * 30,
+		Transport: unit.Proxy.Transport(),
 	}
-	req := GetRequest{
-		RequestInternal: RequestInternal{
-			Url:       url,
-			Headers:   unit.Headers,
-			Cookies:   unit.Cookies,
-			Timeout:   time.Second * 30,
-			Transport: unit.Proxy.Transport(),
-		},
-	}
-	cont, err := req.Perform()
-	unit.LastAnswer.Response = req.RequestInternal.Response
+	cont, err := unit.Perform(&req)
 	if err != nil {
-		return UnitError{
-			Code:    NetworkError,
-			Message: err.Error(),
-		}
+		return UnitError{NetworkError, err.Error()}
 	}
 	if unit.LastAnswer.Response.StatusCode != 200 {
-		return UnitError{
-			Code:    NetworkError,
-			Message: "invalid response code",
-		}
+		return UnitError{NetworkError, "invalid response code"}
 	}
-	unit.LastAnswer.Body = cont
+
 	var response struct {
 		Id     string
 		Result int
 	}
-	json.Unmarshal(cont, &response)
-	if response.Id == "" {
-		return UnitError{
-			Code:    ParsingError,
-			Message: "unexpected answer",
-		}
+	if err := json.Unmarshal(cont, &response); err != nil {
+		return UnitError{ParsingError, err.Error()}
 	}
+	if response.Id == "" {
+		return UnitError{ParsingError, "unexpected answer"}
+	}
+
 	unit.CaptchaId = response.Id
 	return nil
 }
 
-func (unit *Unit) GetCaptchaImage() ([]byte, error) {
+func (unit *Unit) GetCaptchaImage() error {
+	unit.Captcha.Image = ""
 	url := fmt.Sprintf(
 		"https://2ch.hk%sshow?id=%s",
 		CaptchaApi,
 		unit.CaptchaId,
 	)
-	unit.LastAnswer = Answer{
-		Stage: CaptchaImage,
+	req := Request{
+		Url:       url,
+		Headers:   unit.Headers,
+		Cookies:   unit.Cookies,
+		Timeout:   time.Second * 30,
+		Transport: unit.Proxy.Transport(),
 	}
-	req := GetRequest{
-		RequestInternal{
-			Url:       url,
-			Headers:   unit.Headers,
-			Cookies:   unit.Cookies,
-			Timeout:   time.Second * 30,
-			Transport: unit.Proxy.Transport(),
-		},
+	cont, err := unit.Perform(&req)
+	if err != nil {
+		return UnitError{NetworkError, err.Error()}
 	}
-	img, err := req.Perform()
-	unit.LastAnswer.Response = req.RequestInternal.Response
-	return img, err
+	if err := json.Unmarshal(cont, &unit.Captcha); err != nil {
+		return UnitError{ParsingError, err.Error()}
+	}
+	if unit.Captcha.Image == "" {
+		return UnitError{ParsingError, "unexpected answer"}
+	}
+	return nil
 }
 
-func (unit *Unit) SolveCaptcha() error {
-	img, err := unit.GetCaptchaImage()
+type SolverResp struct {
+	Index int `json:"index"`
+}
+
+type ClickBody struct {
+	Id  string `json:"captchaTokenId"`
+	Num int    `json:"emojiNumber"`
+}
+
+type ClickResp struct {
+	Success string `json:"success"`
+}
+
+func (unit *Unit) SolveEmoji(url string, data Challenge) (*SolverResp, error) {
+	p, err := json.Marshal(data)
 	if err != nil {
-		return UnitError{
-			Code:    NetworkError,
-			Message: err.Error(),
-		}
+		return nil, UnitError{ParsingError, err.Error()}
 	}
-	unit.LastAnswer.Body = img
-	if unit.LastAnswer.Response.StatusCode != 200 {
-		return UnitError{
-			Code:    NetworkError,
-			Message: "invalid response code",
-		}
+	req := Request{
+		Url:       url,
+		Headers:   unit.Headers,
+		Cookies:   unit.Cookies,
+		Timeout:   time.Second * 30,
+		Transport: unit.Proxy.Transport(),
+		Payload:   bytes.NewBuffer(p),
 	}
-
-	unit.LastAnswer = Answer{
-		Stage: CaptchaSolving,
-	}
-	value, err := unit.Env.Solver(img, options.CaptchaOptions.Key)
-
+	cont, err := unit.Perform(&req)
 	if err != nil {
-		return UnitError{
-			Code:    ParsingError,
-			Message: err.Error(),
-		}
+		return nil, UnitError{NetworkError, err.Error()}
 	}
-	unit.CaptchaValue = value
-
-	if options.CaptchaOptions.Solve {
-		solved, err := Solve(value)
-		if err != nil {
-			return UnitError{
-				Code:    ParsingError,
-				Message: fmt.Sprintf("не удалось средуцировать капчу: %v", err),
-			}
-		}
-		unit.CaptchaValue = solved
+	r := SolverResp{}
+	if err := json.Unmarshal(cont, &r); err != nil {
+		return nil, UnitError{ParsingError, err.Error()}
 	}
 
-	unit.Logf("капча: %s", unit.CaptchaValue)
+	return &r, nil
+}
+
+func (unit *Unit) ClickCaptcha() error {
+	sresp, err := unit.SolveEmoji(LocalSolver, unit.Captcha)
+	if err != nil {
+		return err
+	}
+	creq, err := json.Marshal(ClickBody{
+		Id:  unit.CaptchaId,
+		Num: sresp.Index,
+	})
+	if err != nil {
+		return UnitError{ParsingError, err.Error()}
+	}
+
+	req := Request{
+		Url:       "https://2ch.hk/api/captcha/emoji/click",
+		Headers:   unit.Headers,
+		Cookies:   unit.Cookies,
+		Timeout:   time.Second * 30,
+		Transport: unit.Proxy.Transport(),
+		Payload:   bytes.NewBuffer(creq),
+	}
+	cont, err := unit.Perform(&req)
+	if err != nil {
+		return UnitError{NetworkError, err.Error()}
+	}
+
+	cresp := ClickResp{}
+	if err := json.Unmarshal(cont, &cresp); err != nil {
+		return UnitError{ParsingError, err.Error()}
+	}
+	if cresp.Success != "" {
+		unit.CaptchaValue = cresp.Success
+		return nil
+	}
+	ch := Challenge{}
+	if err := json.Unmarshal(cont, &ch); err != nil {
+		return UnitError{ParsingError, err.Error()}
+	}
+	unit.Captcha = ch
 
 	return nil
 }
+
+//func (unit *Unit) SolveCaptcha() error {
+//	img, err := unit.GetCaptchaImage()
+//	if err != nil {
+//		return UnitError{
+//			Code:    NetworkError,
+//			Message: err.Error(),
+//		}
+//	}
+//	unit.LastAnswer.Body = img
+//	if unit.LastAnswer.Response.StatusCode != 200 {
+//		return UnitError{
+//			Code:    NetworkError,
+//			Message: "invalid response code",
+//		}
+//	}
+//
+//	unit.LastAnswer = Answer{
+//		Stage: CaptchaSolving,
+//	}
+//	value, err := unit.Env.Solver(img, options.CaptchaOptions.Key)
+//
+//	if err != nil {
+//		return UnitError{
+//			Code:    ParsingError,
+//			Message: err.Error(),
+//		}
+//	}
+//	unit.CaptchaValue = value
+//
+//	if options.CaptchaOptions.Solve {
+//		solved, err := Solve(value)
+//		if err != nil {
+//			return UnitError{
+//				Code:    ParsingError,
+//				Message: fmt.Sprintf("не удалось средуцировать капчу: %v", err),
+//			}
+//		}
+//		unit.CaptchaValue = solved
+//	}
+//
+//	unit.Logf("капча: %s", unit.CaptchaValue)
+//
+//	return nil
+//}
 
 func (unit *Unit) GetRandomThread() (string, error) {
 	url := fmt.Sprintf(
 		"https://2ch.hk/%s/catalog.json",
 		options.PostOptions.Board,
 	)
-	req := GetRequest{
-		RequestInternal: RequestInternal{
-			Url:     url,
-			Timeout: time.Second * 30,
-		},
+	req := Request{
+		Url:     url,
+		Timeout: time.Second * 30,
 	}
-	unit.LastAnswer = Answer{
-		Stage: RandomThread,
-	}
-
-	resp, err := req.Perform()
-	unit.LastAnswer.Response = req.RequestInternal.Response
-
+	resp, err := unit.Perform(&req)
 	if err != nil {
 		return "", UnitError{
 			Code:    NetworkError,
 			Message: "не удалось получить случайный тред: " + err.Error(),
 		}
 	}
-	unit.LastAnswer.Body = resp
-
 	type Catalog struct {
 		Threads []struct{ Num uint64 }
 	}
-
 	cata := Catalog{}
-	json.Unmarshal(resp, &cata)
-
+	if err := json.Unmarshal(resp, &cata); err != nil {
+		return "", UnitError{ParsingError, err.Error()}
+	}
 	if len(cata.Threads) == 0 {
-		return "", UnitError{
-			Code:    ParsingError,
-			Message: "не найдено ни одного треда",
+		return "", UnitError{ParsingError, "не найдено ни одного треда"}
+	}
+	thread := cata.Threads[rand.Intn(len(cata.Threads))].Num
+
+	return strconv.Itoa(int(thread)), nil
+}
+
+func (unit *Unit) AddMedia() (*FilesForm, error) {
+	file, err := unit.Env.RandomMedia()
+	if err != nil {
+		return nil, err
+	}
+	if options.PicsOptions.Crop {
+		if err := file.Crop(); err != nil {
+			log.Warn().Fields(map[string]interface{}{
+				"err": err.Error(),
+			}).Msgf(
+				"%s -> Crop() не удался",
+				unit.Proxy.String(),
+			)
 		}
 	}
+	if options.PicsOptions.Mask {
+		if err := file.AddMask(); err != nil {
+			log.Warn().Fields(map[string]interface{}{
+				"err": err.Error(),
+			}).Msgf(
+				"%s -> AddMask() не удался",
+				unit.Proxy.String(),
+			)
+		}
+	}
+	if options.PicsOptions.Noise {
+		if err := file.DrawNoise(); err != nil {
+			log.Warn().Fields(map[string]interface{}{
+				"err": err.Error(),
+			}).Msgf(
+				"%s -> Noise() не удался",
+				unit.Proxy.String(),
+			)
+		}
+	}
+	name := fmt.Sprintf(
+		"%d%s",
+		time.Now().UnixMilli(),
+		file.Ext,
+	)
 
-	thread := cata.Threads[rand.Intn(len(cata.Threads))].Num
-	return strconv.Itoa(int(thread)), nil
+	return &FilesForm{
+		Name: "file[]",
+		Files: map[string][]byte{
+			name: file.Content,
+		},
+	}, nil
 }
 
 func (unit *Unit) SendPost() error {
 	url := "https://2ch.hk" + PostingApi
 	params := map[string]string{
 		"task":             "post",
-		"captcha_type":     "2chcaptcha",
+		"captcha_type":     "emoji_captcha",
 		"comment":          unit.Env.Texts[rand.Intn(len(unit.Env.Texts))],
 		"board":            options.PostOptions.Board,
 		"thread":           unit.Env.Thread,
-		"2chcaptcha_id":    unit.CaptchaId,
-		"2chcaptcha_value": unit.CaptchaValue,
+		"emoji_captcha_id": unit.CaptchaValue,
 		"email":            options.PostOptions.Email,
 	}
 
 	if options.WipeOptions.WipeMode == RandomThreads {
-		thread, err := unit.GetRandomThread()
+		thread, err := func() (string, error) {
+			unit.LastAnswer = Answer{
+				Stage: RandomThread,
+			}
+			return unit.GetRandomThread()
+		}()
 		if err != nil {
 			return err
 		}
@@ -281,90 +428,49 @@ func (unit *Unit) SendPost() error {
 	if options.WipeOptions.Schizo && options.WipeOptions.WipeMode != Creating {
 		posts, err := GetPosts(params["board"], params["thread"])
 		if err != nil {
-			unit.Logf(
-				"%s/%s: не удалось получить посты из треда: %s",
+			log.Warn().Fields(map[string]interface{}{
+				"err": err.Error(),
+			}).Msgf(
+				"%s -> %s/%s: не удалось получить посты из треда",
+				unit.Proxy.String(),
 				params["board"],
 				params["thread"],
-				err.Error(),
 			)
 		} else {
 			params["comment"] = NewChain(posts).BuildText(256)
 		}
 	}
 
-	ReqInternal := RequestInternal{
-		Url:       url,
-		Headers:   unit.Headers,
-		Cookies:   unit.Cookies,
-		Timeout:   time.Second * 60,
-		Transport: unit.Proxy.Transport(),
-	}
 	req := PostMultipartRequest{
-		Request: PostRequest{
-			RequestInternal: ReqInternal,
+		Request: Request{
+			Url:       url,
+			Headers:   unit.Headers,
+			Cookies:   unit.Cookies,
+			Timeout:   time.Second * 60,
+			Transport: unit.Proxy.Transport(),
 		},
 		Params: params,
 	}
 
-	for options.PostOptions.Pic {
-		file, err := unit.Env.RandomMedia()
+	if options.PostOptions.Pic {
+		form, err := unit.AddMedia()
 		if err != nil {
-			unit.Logf("не удалось прекрепить файл: %v", err)
-			break
-		}
-
-		if options.PicsOptions.Crop {
-			err = file.Crop()
-			if err != nil {
-				unit.Logf("Crop(): ошибка: %v", err)
-			}
-		}
-
-		if options.PicsOptions.Mask {
-			err = file.AddMask()
-			if err != nil {
-				unit.Logf("AddMask(): ошибка: %v", err)
-			}
-		}
-
-		if options.PicsOptions.Noise {
-			err = file.DrawNoise()
-			if err != nil {
-				unit.Logf("DrawNoise(): ошибка: %v", err)
-			}
-		}
-
-		name := fmt.Sprintf(
-			"%d%s",
-			time.Now().UnixMilli(),
-			file.Ext,
-		)
-		req.Form = FilesForm{
-			Name: "file[]",
-			Files: map[string][]byte{
-				name: file.Content,
-			},
-		}
-		break
-	}
-
-	unit.LastAnswer = Answer{
-		Stage: SendingPost,
-	}
-	resp, err := req.Perform()
-	unit.LastAnswer.Response = req.Request.RequestInternal.Response
-	if err != nil {
-		return UnitError{
-			Code:    NetworkError,
-			Message: err.Error(),
+			log.Warn().Fields(map[string]interface{}{
+				"err": err.Error(),
+			}).Msgf(
+				"%s -> не удалось прекрепить файл",
+				unit.Proxy.String(),
+			)
+		} else {
+			req.Form = *form
 		}
 	}
-	unit.LastAnswer.Body = resp
+
+	if _, err := unit.Perform(&req); err != nil {
+		return UnitError{NetworkError, err.Error()}
+	}
 	if unit.LastAnswer.Response.StatusCode != 200 {
-		return UnitError{
-			Code:    NetworkError,
-			Message: "invalid response code",
-		}
+		return UnitError{NetworkError, "invalid response code"}
 	}
 	return nil
 }
@@ -394,7 +500,7 @@ func (unit *Unit) HandleAnswer() (string, error) {
 	json.Unmarshal(unit.LastAnswer.Body, answer.(*Ok))
 
 	if answer.(*Ok).Num != 0 {
-		msg = "OK: " + msg
+		msg = "ok: " + msg
 		return msg, nil
 	}
 
@@ -402,7 +508,7 @@ func (unit *Unit) HandleAnswer() (string, error) {
 	json.Unmarshal(unit.LastAnswer.Body, answer.(*OkThread))
 
 	if answer.(*OkThread).Thread != 0 {
-		msg = "OK: " + msg
+		msg = "ok: " + msg
 		return msg, nil
 	}
 
@@ -457,21 +563,15 @@ func (unit *Unit) HandleError(err UnitError) {
 }
 
 func (unit *Unit) HandleNetworkError(err UnitError) {
-	format := `произошла ошибка! дамп ошибки:
-{
-	error-type: NetworkError
-	message:    %s
-	stage:      %s
-	response:   %v
-}`
-
-	msg := fmt.Sprintf(
-		format,
-		err.Message,
-		StageName[unit.LastAnswer.Stage],
-		unit.LastAnswer.Response,
+	log.Error().Fields(map[string]interface{}{
+		"type":  "NetworkError",
+		"msg":   err.Message,
+		"stage": StageName[unit.LastAnswer.Stage],
+		"resp":  unit.LastAnswer.Response,
+	}).Msgf(
+		"%s -> произошла ошибка",
+		unit.Proxy.String(),
 	)
-	unit.Log(msg)
 
 	if unit.LastAnswer.Response == nil {
 		unit.State = Failed
@@ -492,19 +592,13 @@ func (unit *Unit) HandleNetworkError(err UnitError) {
 }
 
 func (unit *Unit) HandleParsingError(err UnitError) {
-	format := `произошла ошибка! дамп ошибки:
-{
-	error-type: ParsingError
-	message:    %s
-	stage:      %s
-	last-body:  %s
-}`
-
-	msg := fmt.Sprintf(
-		format,
-		err.Message,
-		StageName[unit.LastAnswer.Stage],
-		unit.LastAnswer.Body,
+	log.Error().Fields(map[string]interface{}{
+		"type":  "ParsingError",
+		"msg":   err.Message,
+		"stage": StageName[unit.LastAnswer.Stage],
+		"body":  unit.LastAnswer.Body,
+	}).Msgf(
+		"%s -> произошла ошибка",
+		unit.Proxy.String(),
 	)
-	unit.Log(msg)
 }

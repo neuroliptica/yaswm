@@ -1,6 +1,10 @@
 package main
 
-import "time"
+import (
+	"time"
+
+	"github.com/rs/zerolog/log"
+)
 
 func (unit *Unit) Run() {
 	iters := options.WipeOptions.Iters
@@ -13,12 +17,22 @@ func (unit *Unit) Run() {
 		switch unit.State {
 		case Avaiable:
 			err := Maybe{
-				unit.GetCaptchaId,
+				unit.WithStageInfo(unit.GetCaptchaId, CaptchaId),
+				unit.WithStageInfo(unit.GetCaptchaImage, CaptchaGet),
 				func() error {
-					unit.Log("получаю и решаю капчу...")
-					return unit.SolveCaptcha()
+					for i := 0; i < 3; i++ {
+						err := unit.WithStageInfo(unit.ClickCaptcha, CaptchaClick)()
+						if err != nil {
+							return err
+						}
+					}
+					return nil
 				},
-				unit.SendPost,
+				//func() error {
+				//	unit.Log("получаю и решаю капчу...")
+				//	return unit.SolveCaptcha()
+				//},
+				unit.WithStageInfo(unit.SendPost, SendingPost),
 				func() error {
 					msg, err := unit.HandleAnswer()
 					if len(msg) != 0 {
@@ -39,31 +53,32 @@ func (unit *Unit) Run() {
 
 		case NoCookies:
 			unit.Env.Limiter <- void{}
-			unit.Logf(
-				"[%d/%d] сессия невалидна, получаю печенюшки...",
-				unit.FailedSessions+1,
-				options.InternalOptions.SessionFailedLimit,
-			)
+			log.Info().Fields(map[string]interface{}{
+				"failed": unit.FailedSessions,
+				"limit":  options.InternalOptions.SessionFailedLimit,
+			}).Msgf("%s -> получаю печенюшки", unit.Proxy.String())
+
 			unit.Proxy.UserAgent = unit.Env.RandomUserAgent()
 			unit.Headers["User-Agent"] = unit.Proxy.UserAgent
-
 			cookies, err := unit.Proxy.GetCookies()
 
 			<-unit.Env.Limiter
 
 			if err == nil {
-				unit.Log("ок, сессия успешно получена")
+				log.Info().Msgf("%s -> ок, сессия получена", unit.Proxy.String())
 				unit.Cookies = cookies
 				unit.State = Avaiable
 				unit.FailedSessions = 0
 				break
 			}
-			unit.Log("ошибка получения сессии: ", err.Error())
+			log.Error().Fields(map[string]interface{}{
+				"err": err.Error(),
+			}).Msgf("%s -> ошибка получения сесссии", unit.Proxy.String())
 			unit.State = SessionFailed
 
 		case Banned:
 			if options.InternalOptions.FilterBanned {
-				unit.Log("прокси забанена, удаляю")
+				log.Warn().Msgf("%s -> прокси забанена, удаляю", unit.Proxy.String())
 				return
 			}
 			unit.State = Avaiable
@@ -71,7 +86,10 @@ func (unit *Unit) Run() {
 		case Failed:
 			unit.FailedRequests++
 			if unit.FailedRequests >= options.InternalOptions.RequestsFailedLimit {
-				unit.Log("превышено число неудавшихся запросов, удаляю")
+				log.Warn().Msgf(
+					"%s -> превышено число неудавшихся запросов, удаляю",
+					unit.Proxy.String(),
+				)
 				return
 			}
 			unit.State = Avaiable
@@ -79,13 +97,19 @@ func (unit *Unit) Run() {
 		case SessionFailed:
 			unit.FailedSessions++
 			if unit.FailedSessions >= options.InternalOptions.SessionFailedLimit {
-				unit.Log("превышено число неудавшихся сессий, удаляю")
+				log.Warn().Msgf(
+					"%s -> превышено число неудавшихся сессий, удаляю",
+					unit.Proxy.String(),
+				)
 				return
 			}
 			unit.State = NoCookies
 
 		case ClosedSingle:
-			unit.Log("тред закрыт, не могу больше годнопостить")
+			log.Warn().Msgf(
+				"%s -> тред закрыт, не могу больше годнопостить",
+				unit.Proxy.String(),
+			)
 			return
 		}
 	}

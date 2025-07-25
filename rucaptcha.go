@@ -86,13 +86,10 @@ func RuCaptchaPost(img []byte, key string) (*RuCaptchaResponse, error) {
 		"key":    key,
 		"json":   "1",
 	}
-	ReqInternal := RequestInternal{
-		Url:     "http://rucaptcha.com/in.php",
-		Timeout: time.Minute,
-	}
 	req := PostMultipartRequest{
-		Request: PostRequest{
-			RequestInternal: ReqInternal,
+		Request: Request{
+			Url:     "http://rucaptcha.com/in.php",
+			Timeout: time.Minute,
 		},
 		Params: params,
 		Form:   form,
@@ -113,11 +110,9 @@ func RuCaptchaGet(id string, key string) (*RuCaptchaResponse, error) {
 	url := "http://rucaptcha.com/res.php?key=" + key +
 		"&action=get&json=1&id=" + id
 
-	req := GetRequest{
-		RequestInternal: RequestInternal{
-			Url:     url,
-			Timeout: time.Minute,
-		},
+	req := Request{
+		Url:     url,
+		Timeout: time.Minute,
 	}
 	resp, err := req.Perform()
 

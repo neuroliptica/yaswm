@@ -114,11 +114,9 @@ func GetPosts(board string, thread string) ([]string, error) {
 		thread,
 	)
 
-	req := GetRequest{
-		RequestInternal: RequestInternal{
-			Url:     url,
-			Timeout: time.Second * 30,
-		},
+	req := Request{
+		Url:     url,
+		Timeout: time.Second * 30,
 	}
 
 	resp, err := req.Perform()
