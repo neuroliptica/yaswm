@@ -36,7 +36,11 @@ func (unit *Unit) Run() {
 				func() error {
 					msg, err := unit.HandleAnswer()
 					if len(msg) != 0 {
-						unit.Log(msg)
+						log.Info().Msgf(
+							"%s -> %s",
+							unit.Proxy.String(),
+							msg,
+						)
 					}
 					return err
 				},
