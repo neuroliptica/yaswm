@@ -27,9 +27,6 @@ func init() {
 }
 
 func main() {
-	go defaultReader.Read()
-	defer defaultReader.WaitFinish()
-
 	var env Env
 	err := Maybe{
 		func() error {
