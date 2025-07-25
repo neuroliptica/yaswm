@@ -141,7 +141,7 @@ func (env *Env) ParseProxies(path string) error {
 		proxy := Proxy{}
 		err = proxy.Parse(p)
 		if err != nil {
-			log.Info().Msgf("[%s] parsing failed: %v", p, err)
+			log.Error().Msgf("%s -> parsing failed: %v", p, err)
 			continue
 		}
 		env.Proxies = append(env.Proxies, proxy)
@@ -185,7 +185,7 @@ func (env *Env) ParseMedia(path string) error {
 					return err
 				}
 				if len(ent.Content) >= 2e7 {
-					log.Info().Msgf("%s размер превышает 20mb!", entry[i].Name())
+					log.Warn().Msgf("%s размер превышает 20mb", entry[i].Name())
 					continue
 				}
 				env.Media = append(env.Media, ent)
@@ -243,7 +243,7 @@ func (env *Env) ParseThread() error {
 	}
 
 	if options.WipeOptions.WipeMode == SingleThread && env.Thread == "0" {
-		return errors.New("режим \"один тред\", но id треда не указан!")
+		return errors.New("режим \"один тред\", но id треда не указан")
 	}
 	return nil
 }
@@ -257,7 +257,7 @@ func (env *Env) ParseSolver() error {
 	case RuCaptcha:
 		env.Solver = RuCaptchaSolver
 		if options.CaptchaOptions.Key == "" {
-			return errors.New("ключь API антикапчи не указан!")
+			return errors.New("ключь API антикапчи не указан")
 		}
 
 	case Manual:
@@ -302,7 +302,7 @@ func (env *Env) RandomMedia() (Media, error) {
 	}
 
 	ctype := req.Response.Header.Get("Content-Type")
-	log.Info().Msgf("%v", req.Response.Header)
+	log.Debug().Msgf("RandomMedia(): %v", req.Response.Header)
 
 	if types[ctype] == "" {
 		return Media{}, errors.New("invalid Content-Type header")
