@@ -230,6 +230,33 @@ type ClickResp struct {
 	Success string `json:"success"`
 }
 
+//func SaveBase64Image(base64Data string, filename string) error {
+//	base64Data = strings.TrimPrefix(base64Data, "data:image/png;base64,")
+//	data, err := base64.StdEncoding.DecodeString(base64Data)
+//	if err != nil {
+//		return fmt.Errorf("failed to decode base64: %v", err)
+//	}
+//
+//	err = ioutil.WriteFile(filename, data, 0644)
+//	if err != nil {
+//		return fmt.Errorf("failed to write file: %v", err)
+//	}
+//
+//	return nil
+//}
+//
+//func (unit *Unit) ManualSolveEmoji(data Challenge) (*SolverResp, error) {
+//	SaveBase64Image(data.Image, "captcha.png")
+//	for i := range data.Keyboard {
+//		SaveBase64Image(data.Keyboard[i], fmt.Sprintf("%d.png", i))
+//	}
+//	var value int
+//	fmt.Scan(&value)
+//	return &SolverResp{
+//		Index: value,
+//	}, nil
+//}
+
 func (unit *Unit) SolveEmoji(url string, data Challenge) (*SolverResp, error) {
 	p, err := json.Marshal(data)
 	if err != nil {
@@ -240,7 +267,8 @@ func (unit *Unit) SolveEmoji(url string, data Challenge) (*SolverResp, error) {
 		Headers: map[string]string{
 			"Content-Type": "application/json",
 		},
-		Timeout:   time.Second * 30,
+		Timeout: time.Second * 30,
+		// Can be posted w/o proxy i guess.
 		Transport: unit.Proxy.Transport(),
 		Payload:   bytes.NewBuffer(p),
 	}
@@ -252,7 +280,8 @@ func (unit *Unit) SolveEmoji(url string, data Challenge) (*SolverResp, error) {
 	if err := json.Unmarshal(cont, &r); err != nil {
 		return nil, UnitError{ParsingError, err.Error()}
 	}
-	log.Info().Msg(string(cont))
+	// Solver response body, change to Info() loglevel if needed.
+	log.Debug().Msg(string(cont))
 
 	return &r, nil
 }

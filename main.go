@@ -28,7 +28,7 @@ func init() {
 
 func main() {
 	var env Env
-	err := Maybe{
+	config := Maybe{
 		func() error {
 			return env.ParseMedia("./res/images")
 		},
@@ -44,11 +44,10 @@ func main() {
 		env.ParseWipeMode,
 		env.ParseLimiter,
 		env.ParseThread,
-		env.ParseSolver,
-	}.
-		Eval()
+		//env.ParseSolver,
+	}
 
-	if err != nil {
+	if err := config.Eval(); err != nil {
 		log.Error().Msgf("ошибка конфига: %s", err.Error())
 		return
 	}

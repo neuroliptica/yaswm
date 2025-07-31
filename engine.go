@@ -13,10 +13,10 @@ func (unit *Unit) Run() {
 	defer unit.Wg.Done()
 
 	for i := 0; inf || i < iters; {
-
 		switch unit.State {
+
 		case Avaiable:
-			err := Maybe{
+			post := Maybe{
 				unit.WithStageInfo(unit.GetCaptchaId, CaptchaId),
 				unit.WithStageInfo(unit.GetCaptchaImage, CaptchaGet),
 				func() error {
@@ -28,10 +28,6 @@ func (unit *Unit) Run() {
 					}
 					return nil
 				},
-				//func() error {
-				//	unit.Log("получаю и решаю капчу...")
-				//	return unit.SolveCaptcha()
-				//},
 				unit.WithStageInfo(unit.SendPost, SendingPost),
 				func() error {
 					msg, err := unit.HandleAnswer()
@@ -44,10 +40,9 @@ func (unit *Unit) Run() {
 					}
 					return err
 				},
-			}.
-				Eval()
+			}
 
-			if err == nil {
+			if err := post.Eval(); err == nil {
 				unit.FailedRequests = 0
 				i++
 			} else {
