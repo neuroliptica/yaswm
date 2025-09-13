@@ -285,14 +285,14 @@ func (p *Proxy) GetCookies() (cookies []*http.Cookie, err error) {
 	})
 	go router.Run()
 
-	err = page.Navigate("https://2ch.hk/b")
+	err = page.Navigate("https://2ch.su/b")
 	if err != nil {
 		return nil, err
 	}
 	page.MustWaitNavigation()
 	time.Sleep(time.Second * 20)
 
-	captchaUrl := "https://2ch.hk/api/captcha/emoji/id"
+	captchaUrl := "https://2ch.su/api/captcha/emoji/id"
 	err = page.Navigate(captchaUrl)
 	if err != nil {
 		return nil, err

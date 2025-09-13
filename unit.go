@@ -139,7 +139,7 @@ func (unit *Unit) WithStageInfo(f func() error, stage int) func() error {
 }
 
 func (unit *Unit) GetCaptchaId() error {
-	url := "https://2ch.hk" + CaptchaApi + "id"
+	url := "https://2ch.su" + CaptchaApi + "id"
 	req := Request{
 		Url:       url,
 		Headers:   unit.Headers,
@@ -193,7 +193,7 @@ func (unit *Unit) GetCaptchaId() error {
 func (unit *Unit) GetCaptchaImage() error {
 	unit.Captcha = Challenge{}
 	url := fmt.Sprintf(
-		"https://2ch.hk%sshow?id=%s",
+		"https://2ch.su%sshow?id=%s",
 		CaptchaApi,
 		unit.CaptchaId,
 	)
@@ -300,7 +300,7 @@ func (unit *Unit) ClickCaptcha() error {
 	}
 
 	req := Request{
-		Url:       "https://2ch.hk/api/captcha/emoji/click",
+		Url:       "https://2ch.su/api/captcha/emoji/click",
 		Headers:   unit.Headers,
 		Cookies:   unit.Cookies,
 		Timeout:   time.Second * 30,
@@ -376,7 +376,7 @@ func (unit *Unit) ClickCaptcha() error {
 
 func (unit *Unit) GetRandomThread() (string, error) {
 	url := fmt.Sprintf(
-		"https://2ch.hk/%s/catalog.json",
+		"https://2ch.su/%s/catalog.json",
 		options.PostOptions.Board,
 	)
 	req := Request{
@@ -455,7 +455,7 @@ func (unit *Unit) AddMedia() (*FilesForm, error) {
 }
 
 func (unit *Unit) SendPost() error {
-	url := "https://2ch.hk" + PostingApi
+	url := "https://2ch.su" + PostingApi
 	params := map[string]string{
 		"task":             "post",
 		"captcha_type":     "emoji_captcha",

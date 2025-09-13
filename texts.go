@@ -109,7 +109,7 @@ func GetPosts(board string, thread string) ([]string, error) {
 	}
 
 	url := fmt.Sprintf(
-		"https://2ch.hk/%s/res/%s.json",
+		"https://2ch.su/%s/res/%s.json",
 		board,
 		thread,
 	)
