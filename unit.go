@@ -269,8 +269,8 @@ func (unit *Unit) SolveEmoji(url string, data Challenge) (*SolverResp, error) {
 		},
 		Timeout: time.Second * 30,
 		// Can be posted w/o proxy i guess.
-		Transport: unit.Proxy.Transport(),
-		Payload:   bytes.NewBuffer(p),
+		//Transport: unit.Proxy.Transport(),
+		Payload: bytes.NewBuffer(p),
 	}
 	cont, err := unit.Perform(&req)
 	if err != nil {
